@@ -1,0 +1,54 @@
+# AGENTS.md
+
+## Zweck
+Dieses Dokument gibt Agenten einen schnellen, verlässlichen Überblick über das Projekt `HighMoon2` und die erwartete Arbeitsweise bei Änderungen.
+
+## Projektstatus (Ist-Zustand)
+- Sprache: TypeScript
+- Laufzeit: Browser (Canvas 2D)
+- Build: `tsc` (kein Bundler, kein Framework)
+- Einstiegscode: `src/index.ts`
+- Kompilat: `dist/index.js`
+- HTML-Einstieg: `index.html` lädt `dist/index.js`
+
+## Relevante Dateien
+- `package.json`: Build-Skript und Abhängigkeiten
+- `tsconfig.json`: TypeScript-Compiler-Konfiguration (`outDir: dist`, `module: es2015`)
+- `index.html`: Vollbild-Seite mit Canvas-Hintergrund und Script-Tag auf `dist/index.js`
+- `src/index.ts`: Komplette Szenenlogik (Sterne, Kreise, Raumschiff, Input, Render-Loop)
+
+## Build und Ausführung
+### Build
+```bash
+npm run build
+```
+
+### Im Browser starten
+Nach dem Build `index.html` im Browser öffnen.
+
+## Laufzeit-Architektur (`src/index.ts`)
+- Erstellt ein Fullscreen-Canvas und zeichnet pro Frame:
+  1. Hintergrund
+  2. Sterne (inkl. Blinklogik)
+  3. Weiße Kreise in der Mitte
+  4. Raumschiff (Dreieck)
+- Kernfunktionen:
+  - `createStars(...)`, `drawStars(...)`, `updateBlink(...)`
+  - `createCircles(...)`, `drawCenterCircles(...)`
+  - `updateShip(...)`, `drawShip(...)`
+  - `render(...)`
+- Input:
+  - `ArrowLeft` / `ArrowRight` drehen das Schiff
+  - `ArrowUp` / `ArrowDown` bewegen das Schiff vertikal
+
+## Arbeitsregeln für Agenten
+- Kleine, gezielte Änderungen bevorzugen; bestehendes Verhalten nur ändern, wenn angefordert.
+- Bei visuellen Parametern zuerst Konstanten anpassen (z. B. `STAR_*`, `MIN_CIRCLE_*`, `SHIP_*`) statt Logik groß umzubauen.
+- Nach Codeänderungen TypeScript-Build ausführen und auf Fehler prüfen.
+- Keine unnötigen neuen Abhängigkeiten einführen.
+- Ausgabe bleibt browserbasiert über `index.html` + `dist/index.js`.
+
+## Bekannte Besonderheiten
+- `dist/` ist Build-Artefakt aus `tsc`.
+- Es gibt aktuell keine automatisierten Tests; Absicherung erfolgt primär über Build und manuelle Sichtprüfung im Browser.
+
