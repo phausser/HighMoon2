@@ -1,6 +1,6 @@
 const STAR_COUNT = 50;
 const CIRCLE_COUNT = 5;
-const BACKGROUND_COLOR = "#001133";
+const BACKGROUND_COLOR = "#000022";
 const STAR_COLOR = "255, 255, 255";
 const MIN_CIRCLE_RADIUS = 36;
 const MAX_CIRCLE_RADIUS = 72;
@@ -177,6 +177,7 @@ let shakeUntil = 0;
 let playerLastMovedAt = 0;
 let playerStillCheckX = 0;
 let playerStillCheckY = 0;
+let gameActive = false;
 
 function randomBetween(min: number, max: number): number {
   return min + Math.random() * (max - min);
@@ -551,6 +552,8 @@ function spawnEnemyProjectile(now: number): void {
 }
 
 function updateShip(deltaSeconds: number, now: number): void {
+  if (!gameActive) return;
+
   if (input.left) {
     ship.angle -= ship.turnSpeed * deltaSeconds;
   }
@@ -581,6 +584,8 @@ function updateShip(deltaSeconds: number, now: number): void {
 }
 
 function updateEnemyShip(deltaSeconds: number, now: number): void {
+  if (!gameActive) return;
+
   if (!enemyShip.active) {
     if (enemyShip.respawnAt >= 0 && now >= enemyShip.respawnAt) {
       respawnEnemyShip(now);
@@ -886,13 +891,18 @@ function drawEnergyBar(shipX: number, shipY: number, energy: number, maxEnergy: 
 }
 
 function drawShip(): void {
-  context.save();
-  
   const zoomedX = ship.x * zoomLevel + (canvas.width * (1 - zoomLevel)) / 2;
   const zoomedY = ship.y * zoomLevel + (canvas.height * (1 - zoomLevel)) / 2;
   const zoomedLength = ship.length * zoomLevel;
   const zoomedWidth = ship.width * zoomLevel;
-  
+
+  // Blinken wenn nicht steuerbar
+  if (!gameActive && Math.floor(performance.now() / 300) % 2 === 0) {
+    drawEnergyBar(zoomedX, zoomedY, ship.energy, SHIP_MAX_ENERGY);
+    return;
+  }
+
+  context.save();
   context.translate(zoomedX, zoomedY);
   context.rotate(ship.angle);
 
@@ -979,6 +989,13 @@ function render(now: number): void {
   updateParticles(deltaSeconds, now);
   updateZoom(deltaSeconds);
 
+  // Spieler ohne Energie → Spielzustand beenden
+  if (gameActive && ship.energy <= 0) {
+    gameActive = false;
+    projectiles = [];
+    enemyProjectiles = [];
+  }
+
   context.save();
   if (now < shakeUntil) {
     const progress = (shakeUntil - now) / SHAKE_DURATION_MS;
@@ -998,6 +1015,18 @@ function render(now: number): void {
   drawShip();
 
   context.restore();
+
+  // Prompt anzeigen wenn Spiel nicht aktiv (blinkt synchron mit dem Schiff)
+  if (!gameActive && Math.floor(performance.now() / 300) % 2 !== 0) {
+    const promptText = ship.energy <= 0 ? "GAME OVER – PRESS SPACE" : "PRESS SPACE TO START";
+    context.save();
+    context.font = "bold 32px 'Doto', monospace";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillStyle = "rgba(255, 255, 255, 0.85)";
+    context.fillText(promptText, canvas.width / 2, canvas.height / 2);
+    context.restore();
+  }
 
   requestAnimationFrame(render);
 }
@@ -1039,7 +1068,14 @@ window.addEventListener("keydown", (event) => {
   }
 
   if (event.code === "Space" && !event.repeat) {
-    spawnProjectile(performance.now());
+    if (!gameActive) {
+      gameActive = true;
+      ship.energy = SHIP_MAX_ENERGY;
+      projectiles = [];
+      enemyProjectiles = [];
+    } else {
+      spawnProjectile(performance.now());
+    }
   }
 
   setInputByKey(event.key, true);
