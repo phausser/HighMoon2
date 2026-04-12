@@ -41,6 +41,8 @@ const PARTICLE_COUNT = 50;
 const PARTICLE_MIN_RANGE = 25;
 const PARTICLE_MAX_RANGE = 100;
 const PARTICLE_LIFETIME_MS = 700;
+const SHAKE_DURATION_MS = 350;
+const SHAKE_INTENSITY = 10;
 
 const canvas = document.createElement("canvas");
 const contextMaybe = canvas.getContext("2d");
@@ -160,6 +162,7 @@ let blinkUntil = 0;
 let nextBlinkAt = 0;
 let lastFrameTime = 0;
 let zoomLevel = 1.0;
+let shakeUntil = 0;
 
 function randomBetween(min: number, max: number): number {
   return min + Math.random() * (max - min);
@@ -366,6 +369,10 @@ function spawnParticles(x: number, y: number, energy: number, colorRGB: string, 
   }
 }
 
+function triggerShake(now: number): void {
+  shakeUntil = now + SHAKE_DURATION_MS;
+}
+
 function initializeOrClampShip(width: number, height: number): void {
   if (ship.x === 0 && ship.y === 0) {
     ship.x = width - SHIP_MARGIN_RIGHT;
@@ -539,6 +546,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
       const projectileEnergy = calculateProjectileEnergy(projectile, now);
       ship.energy = Math.max(0, ship.energy - projectileEnergy);
       spawnParticles(projectile.x, projectile.y, projectileEnergy, "255, 255, 255", now);
+      triggerShake(now);
       continue; // Projektil wird zerstört
     }
 
@@ -548,6 +556,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
       const projectileEnergy = calculateProjectileEnergy(projectile, now);
       enemyShip.energy = Math.max(0, enemyShip.energy - projectileEnergy);
       spawnParticles(projectile.x, projectile.y, projectileEnergy, "255, 255, 255", now);
+      triggerShake(now);
       if (enemyShip.energy <= 0) {
         enemyShip.active = false;
         enemyShip.respawnAt = now + ENEMY_RESPAWN_DELAY_MS;
@@ -592,6 +601,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
       const projectileEnergy = calculateProjectileEnergy(projectile, now);
       ship.energy = Math.max(0, ship.energy - projectileEnergy);
       spawnParticles(projectile.x, projectile.y, projectileEnergy, "255, 255, 255", now);
+      triggerShake(now);
       continue; // Projektil wird zerstört
     }
 
@@ -601,6 +611,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
       const projectileEnergy = calculateProjectileEnergy(projectile, now);
       enemyShip.energy = Math.max(0, enemyShip.energy - projectileEnergy);
       spawnParticles(projectile.x, projectile.y, projectileEnergy, "255, 255, 255", now);
+      triggerShake(now);
       if (enemyShip.energy <= 0) {
         enemyShip.active = false;
         enemyShip.respawnAt = now + ENEMY_RESPAWN_DELAY_MS;
@@ -631,6 +642,7 @@ function updateEnemyProjectiles(deltaSeconds: number, now: number): void {
       const projectileEnergy = calculateProjectileEnergy(projectile, now);
       ship.energy = Math.max(0, ship.energy - projectileEnergy);
       spawnParticles(projectile.x, projectile.y, projectileEnergy, "255, 68, 68", now);
+      triggerShake(now);
       continue;
     }
 
@@ -678,6 +690,7 @@ function updateEnemyProjectiles(deltaSeconds: number, now: number): void {
       const projectileEnergy = calculateProjectileEnergy(projectile, now);
       ship.energy = Math.max(0, ship.energy - projectileEnergy);
       spawnParticles(projectile.x, projectile.y, projectileEnergy, "255, 68, 68", now);
+      triggerShake(now);
       continue;
     }
 
@@ -847,7 +860,17 @@ function render(now: number): void {
   updateEnemyProjectiles(deltaSeconds, now);
   updateParticles(deltaSeconds, now);
   updateZoom(deltaSeconds);
-  
+
+  context.save();
+  if (now < shakeUntil) {
+    const progress = (shakeUntil - now) / SHAKE_DURATION_MS;
+    const intensity = SHAKE_INTENSITY * progress;
+    context.translate(
+      (Math.random() * 2 - 1) * intensity,
+      (Math.random() * 2 - 1) * intensity,
+    );
+  }
+
   drawStars(now);
   drawCenterCircles();
   drawParticles(now);
@@ -855,6 +878,8 @@ function render(now: number): void {
   drawEnemyProjectiles(now);
   drawEnemyShip();
   drawShip();
+
+  context.restore();
 
   requestAnimationFrame(render);
 }
