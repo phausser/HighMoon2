@@ -23,14 +23,16 @@ Dieses Dokument definiert, wie Copilot in `HighMoon2` arbeiten soll.
 - Beachte, dass die Szene browserbasiert bleibt (kein Framework/Bundler einfuehren).
 - Standardverhalten beibehalten, sofern nicht anders gefordert: Schiff startet mittig und schaut nach links.
 - Projektilverhalten beibehalten, sofern nicht anders gefordert: Space schiesst eine kleine Kugel in Blickrichtung, geradlinig, max. 5 Sekunden Lebensdauer.
-- **Zoom-System**: Die Kamera zoomt automatisch heraus, wenn Projektile den Bildschirm verlassen wuerden, um diese mit 20px Margin sichtbar zu halten. Sterne bleiben unveraendert, nur Vordergrund-Objekte (Schiff, Projektile, Asteroiden) werden skaliert.
+- **Zoom-System**: Die Kamera zoomt sanft heraus, wenn **Spieler-Projektile** den Bildschirmrand naehern (20 px Margin). Feind-Projektile beeinflussen den Zoom nicht. Sterne bleiben unveraendert, nur Vordergrund-Objekte (Schiff, Projektile, Asteroiden) werden skaliert.
 
 ## Zoom-Verhalten
-- Automatisches Herauszoomen wenn Projektile ausserhalb des sichtbaren Bereichs sind.
-- Praezise Berechnung des minimalen Zoom-Levels fuer alle Projektile mit `PROJECTILE_MARGIN_FROM_EDGE`.
-- Automatisches Reinzoomen auf 1.0 wenn keine Projektile mehr vorhanden sind.
+- Zoom gilt ausschliesslich fuer Spieler-Projektile; Gegner-Projektile werden vollstaendig ignoriert.
+- Praezise Berechnung des minimalen Zoom-Levels fuer alle Spieler-Projektile mit `PROJECTILE_MARGIN_FROM_EDGE`.
+- Maximale Verkleinerung: `MIN_ZOOM = 0.5` (50 %). Jenseits dieser Grenze duerfen Projektile den sichtbaren Bereich verlassen.
+- Automatisches Reinzoomen auf 1.0 wenn keine Spieler-Projektile mehr vorhanden sind.
+- Zoom-Uebergaenge sind immer gleichmaessig und nie ruckhaft – in beide Richtungen.
 - Sternenhintergrund bleibt von Zoom unbeeinflusst.
-- Zoom-Level zwischen `MIN_ZOOM` und 1.0 begrenzt.
+- Zoom-Level zwischen `MIN_ZOOM` (0.5) und 1.0 begrenzt.
 
 ## Gegner-Verhalten
 - Gegner-Schiff (rot) startet links auf Hoehe `ENEMY_MARGIN_LEFT`.

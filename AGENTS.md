@@ -55,7 +55,9 @@ Nach dem Build `index.html` im Browser öffnen.
 ## Spieler-Projektile
 - Fliegen geradlinig in Blickrichtung, werden von Asteroiden gravitativ abgelenkt.
 - Maximal 5 Sekunden Lebensdauer; Schaden nimmt mit Alter ab.
-- Zoom-System: Kamera zoomt automatisch heraus, um alle Projektile mit 20 px Margin sichtbar zu halten.
+- Zoom-System: Kamera zoomt sanft und gleichmässig heraus, um Spieler-Projektile mit 20 px Margin sichtbar zu halten.
+- Maximale Verkleinerung: 50 % (`MIN_ZOOM = 0.5`). Jenseits dieser Grenze dürfen Projektile den Bildschirm verlassen.
+- Feind-Projektile beeinflussen den Zoom **nicht**.
 
 ## Gegner-System
 - `EnemyShipState` enthält: `active`, `entering`, `respawnAt`, `targetY`, `nextMoveAt`, `lastFiredAt` u. a.

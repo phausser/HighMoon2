@@ -7,7 +7,7 @@ A minimal TypeScript browser game rendered with Canvas 2D – two ships fight ea
 - Projectile shooting with gravitational physics (asteroids bend trajectories)
 - **Enemy ship** (red) that aims at the player, fires homing projectiles and automatically respawns from the left after being destroyed
 - Energy bars for both ships; projectile damage decreases with projectile age
-- Automatic zoom system: camera zooms out to keep all active projectiles visible with a 20 px margin
+- Automatic zoom system: camera smoothly zooms out (up to 50 %) to keep player projectiles visible; beyond that limit projectiles may leave the screen
 - Dynamic background stars with blink effect (unaffected by zoom)
 - Asteroids with collision detection
 
@@ -28,7 +28,13 @@ Then open `index.html` in your browser.
 - `Space`: shoot projectile in facing direction
 
 ## Zoom System
-The camera automatically zooms out when projectiles would leave the screen, ensuring all projectiles remain visible with a 20-pixel margin from the screen edge. When no projectiles are active, the camera smoothly zooms back to normal (1.0×) scale. The star background remains unaffected by zoom changes.
+The camera tracks **player projectiles only** – enemy projectiles never influence the zoom level.
+
+- The camera zooms out smoothly when player projectiles approach the screen edge (20 px margin).
+- The maximum zoom-out is **50 %** (`MIN_ZOOM = 0.5`). Beyond that limit, projectiles may leave the visible area.
+- When all player projectiles have expired or been destroyed, the camera smoothly zooms back to 1.0×.
+- Zoom transitions are always gradual – no abrupt jumps in either direction.
+- The star background is unaffected by zoom; only foreground objects (ship, projectiles, asteroids) are scaled.
 
 ## Enemy Behaviour
 - Starts on the left side of the screen (`ENEMY_MARGIN_LEFT`).
