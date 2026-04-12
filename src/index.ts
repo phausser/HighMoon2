@@ -184,6 +184,69 @@ function randomBetween(min: number, max: number): number {
   return min + Math.random() * (max - min);
 }
 
+// ── Audio ────────────────────────────────────────────────────────────────────
+let audioContext: AudioContext | null = null;
+
+function getAudioContext(): AudioContext {
+  if (!audioContext) {
+    audioContext = new AudioContext();
+  }
+  if (audioContext.state === "suspended") {
+    audioContext.resume();
+  }
+  return audioContext;
+}
+
+function playShootSound(pitchHz: number = 880): void {
+  try {
+    const ctx = getAudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(pitchHz, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(pitchHz * 0.2, ctx.currentTime + 0.13);
+    gain.gain.setValueAtTime(0.22, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.13);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.14);
+  } catch (_) {
+    // Audio nicht verfügbar – ignorieren
+  }
+}
+
+function playExplosionSound(energy: number): void {
+  try {
+    const ctx = getAudioContext();
+    const duration = 0.38;
+    const sampleCount = Math.ceil(ctx.sampleRate * duration);
+    const buffer = ctx.createBuffer(1, sampleCount, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < sampleCount; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    const baseFreq = 180 + (energy / 100) * 820;
+    filter.frequency.setValueAtTime(baseFreq, ctx.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(55, ctx.currentTime + duration);
+    const gain = ctx.createGain();
+    const vol = 0.12 + (energy / 100) * 0.33;
+    gain.gain.setValueAtTime(vol, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    source.start();
+    source.stop(ctx.currentTime + duration);
+  } catch (_) {
+    // Audio nicht verfügbar – ignorieren
+  }
+}
+
 function pickStarAlpha(): number {
   const roll = Math.random();
 
@@ -388,6 +451,8 @@ function spawnParticles(x: number, y: number, energy: number, colorRGB: string, 
       colorRGB,
     });
   }
+
+  playExplosionSound(energy);
 }
 
 function triggerShake(now: number): void {
@@ -419,6 +484,8 @@ function spawnProjectile(now: number): void {
     createdAt: now,
     canHitShipAfter: now + PROJECTILE_SHIP_COLLISION_GRACE_MS,
   });
+
+  playShootSound(880);
 }
 
 function initializeEnemyShip(width: number, height: number): void {
@@ -550,6 +617,8 @@ function spawnEnemyProjectile(now: number): void {
     createdAt: now,
     canHitShipAfter: now + PROJECTILE_SHIP_COLLISION_GRACE_MS,
   });
+
+  playShootSound(420);
 }
 
 function updateShip(deltaSeconds: number, now: number): void {
@@ -1021,7 +1090,7 @@ function render(now: number): void {
 
   // Score-Overlay oben mittig
   context.save();
-  context.font = "normal 20px 'Varela Round', monospace";
+  context.font = "normal 16px 'Varela Round', monospace";
   context.textAlign = "center";
   context.textBaseline = "top";
   context.fillStyle = "rgba(255, 255, 255, 0.85)";
@@ -1032,7 +1101,7 @@ function render(now: number): void {
   if (!gameActive && Math.floor(performance.now() / 300) % 2 !== 0) {
     const promptText = ship.energy <= 0 ? "GAME OVER – PRESS SPACE" : "PRESS SPACE TO START";
     context.save();
-    context.font = "normal 20px 'Varela Round', monospace";
+    context.font = "normal 32px 'Varela Round', monospace";
     context.textAlign = "center";
     context.textBaseline = "middle";
     context.fillStyle = "rgba(255, 255, 255, 0.85)";
