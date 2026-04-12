@@ -43,6 +43,12 @@ const PARTICLE_MAX_RANGE = 100;
 const PARTICLE_LIFETIME_MS = 700;
 const SHAKE_DURATION_MS = 350;
 const SHAKE_INTENSITY = 10;
+const ENEMY_STILL_THRESHOLD_PX = 4;
+const ENEMY_STILL_THRESHOLD_MS = 2000;
+const ENEMY_STILL_AIM_SPREAD_RAD = 0.03;
+const ENEMY_STILL_SIM_STEP = 1 / 60;
+const ENEMY_STILL_SIM_ANGLE_OFFSETS = [0, 0.05, -0.05, 0.1, -0.1, 0.15, -0.15, 0.2, -0.2];
+const ENEMY_STILL_SIM_Y_OFFSETS = [0, -80, 80, -160, 160, -240, 240, -320, 320];
 
 const canvas = document.createElement("canvas");
 const contextMaybe = canvas.getContext("2d");
@@ -163,6 +169,9 @@ let nextBlinkAt = 0;
 let lastFrameTime = 0;
 let zoomLevel = 1.0;
 let shakeUntil = 0;
+let playerLastMovedAt = 0;
+let playerStillCheckX = 0;
+let playerStillCheckY = 0;
 
 function randomBetween(min: number, max: number): number {
   return min + Math.random() * (max - min);
@@ -424,9 +433,99 @@ function respawnEnemyShip(now: number): void {
   enemyShip.respawnAt = -1;
 }
 
-function spawnEnemyProjectile(now: number): void {  const aimAngle = Math.atan2(ship.y - enemyShip.y, ship.x - enemyShip.x);
-  const spread = (Math.random() - 0.5) * 2 * ENEMY_AIM_SPREAD_RAD;
-  const finalAngle = aimAngle + spread;
+function simulateEnemyProjectileHitsPlayer(startX: number, startY: number, angle: number): boolean {
+  let x = startX + Math.cos(angle) * (enemyShip.length / 2);
+  let y = startY + Math.sin(angle) * (enemyShip.length / 2);
+  let vx = Math.cos(angle) * PROJECTILE_SPEED;
+  let vy = Math.sin(angle) * PROJECTILE_SPEED;
+  const maxSteps = Math.ceil((PROJECTILE_MAX_LIFETIME_MS / 1000) / ENEMY_STILL_SIM_STEP);
+  const shipCollisionRadius = Math.max(ship.length, ship.width) / 2;
+
+  for (let step = 0; step < maxSteps; step++) {
+    if (circles.some((circle) => isProjectileCollidingWithAsteroid(x, y, circle))) {
+      return false;
+    }
+    if (isProjectileCollidingWithTarget(x, y, ship.x, ship.y, shipCollisionRadius)) {
+      return true;
+    }
+
+    let ax = 0;
+    let ay = 0;
+
+    for (const circle of circles) {
+      const dx = circle.x - x;
+      const dy = circle.y - y;
+      const distSq = dx * dx + dy * dy;
+      const minDist = Math.max(PROJECTILE_GRAVITY_MIN_DISTANCE, circle.radius * 0.35);
+      const clampedDistSq = Math.max(distSq, minDist * minDist);
+      const dist = Math.sqrt(clampedDistSq);
+      const mag = Math.min(
+        (PROJECTILE_GRAVITY_CONSTANT * circle.mass) / clampedDistSq,
+        PROJECTILE_MAX_GRAVITY_ACCELERATION,
+      );
+      ax += (dx / dist) * mag;
+      ay += (dy / dist) * mag;
+    }
+
+    const hdx = ship.x - x;
+    const hdy = ship.y - y;
+    const hdist = Math.hypot(hdx, hdy);
+    if (hdist > 0) {
+      ax += (hdx / hdist) * ENEMY_PROJECTILE_HOMING_ACCELERATION;
+      ay += (hdy / hdist) * ENEMY_PROJECTILE_HOMING_ACCELERATION;
+    }
+
+    vx += ax * ENEMY_STILL_SIM_STEP;
+    vy += ay * ENEMY_STILL_SIM_STEP;
+    x += vx * ENEMY_STILL_SIM_STEP;
+    y += vy * ENEMY_STILL_SIM_STEP;
+  }
+
+  return false;
+}
+
+function findEnemyAimAngle(now: number): number {
+  const baseAngle = Math.atan2(ship.y - enemyShip.y, ship.x - enemyShip.x);
+  const playerIsStill = now - playerLastMovedAt >= ENEMY_STILL_THRESHOLD_MS;
+
+  if (!playerIsStill) {
+    return baseAngle + (Math.random() - 0.5) * 2 * ENEMY_AIM_SPREAD_RAD;
+  }
+
+  // Schritt 1: Aktuelle Position – alle Winkel durchprobieren
+  for (const offset of ENEMY_STILL_SIM_ANGLE_OFFSETS) {
+    if (simulateEnemyProjectileHitsPlayer(enemyShip.x, enemyShip.y, baseAngle + offset)) {
+      return baseAngle + offset + (Math.random() - 0.5) * 2 * ENEMY_STILL_AIM_SPREAD_RAD;
+    }
+  }
+
+  // Schritt 2: Kein freier Schuss – bessere Y-Position suchen und ansteuern
+  const halfLength = enemyShip.length / 2;
+  for (const yOffset of ENEMY_STILL_SIM_Y_OFFSETS) {
+    if (yOffset === 0) continue;
+    const testY = clamp(enemyShip.y + yOffset, halfLength, canvas.height - halfLength);
+    const testAngle = Math.atan2(ship.y - testY, ship.x - enemyShip.x);
+    let found = false;
+    for (const angleOffset of ENEMY_STILL_SIM_ANGLE_OFFSETS) {
+      if (simulateEnemyProjectileHitsPlayer(enemyShip.x, testY, testAngle + angleOffset)) {
+        found = true;
+        break;
+      }
+    }
+    if (found) {
+      // Gegner manövriert zur besseren Schussposition
+      enemyShip.targetY = testY;
+      enemyShip.nextMoveAt = now + ENEMY_STAY_MAX_MS;
+      break;
+    }
+  }
+
+  // Schießt mit kleiner Streuung während des Manövrierens
+  return baseAngle + (Math.random() - 0.5) * 2 * ENEMY_STILL_AIM_SPREAD_RAD;
+}
+
+function spawnEnemyProjectile(now: number): void {
+  const finalAngle = findEnemyAimAngle(now);
   const directionX = Math.cos(finalAngle);
   const directionY = Math.sin(finalAngle);
   const noseOffset = enemyShip.length / 2;
@@ -441,7 +540,7 @@ function spawnEnemyProjectile(now: number): void {  const aimAngle = Math.atan2(
   });
 }
 
-function updateShip(deltaSeconds: number): void {
+function updateShip(deltaSeconds: number, now: number): void {
   if (input.left) {
     ship.angle -= ship.turnSpeed * deltaSeconds;
   }
@@ -460,6 +559,15 @@ function updateShip(deltaSeconds: number): void {
 
   const halfLength = ship.length / 2;
   ship.y = clamp(ship.y, halfLength, canvas.height - halfLength);
+
+  // Stillstand-Tracking: Prüfen ob Spieler sich genug bewegt hat
+  const movedX = Math.abs(ship.x - playerStillCheckX);
+  const movedY = Math.abs(ship.y - playerStillCheckY);
+  if (movedX > ENEMY_STILL_THRESHOLD_PX || movedY > ENEMY_STILL_THRESHOLD_PX) {
+    playerLastMovedAt = now;
+    playerStillCheckX = ship.x;
+    playerStillCheckY = ship.y;
+  }
 }
 
 function updateEnemyShip(deltaSeconds: number, now: number): void {
@@ -854,7 +962,7 @@ function render(now: number): void {
   context.fillRect(0, 0, canvas.width, canvas.height);
 
   updateBlink(now);
-  updateShip(deltaSeconds);
+  updateShip(deltaSeconds, now);
   updateEnemyShip(deltaSeconds, now);
   updateProjectiles(deltaSeconds, now);
   updateEnemyProjectiles(deltaSeconds, now);
