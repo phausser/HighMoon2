@@ -16,6 +16,9 @@ const PROJECTILE_GRAVITY_MIN_DISTANCE = 18;
 const PROJECTILE_MAX_GRAVITY_ACCELERATION = 4200;
 const PROJECTILE_COLLISION_MARGIN = 0;
 const ASTEROID_DENSITY = 0.0024;
+const ZOOM_IN_SPEED = 1.2;
+const MIN_ZOOM = 0.2;
+const PROJECTILE_MARGIN_FROM_EDGE = 20;
 
 const canvas = document.createElement("canvas");
 const contextMaybe = canvas.getContext("2d");
@@ -89,6 +92,7 @@ let blinkingStarIndex = -1;
 let blinkUntil = 0;
 let nextBlinkAt = 0;
 let lastFrameTime = 0;
+let zoomLevel = 1.0;
 
 function randomBetween(min: number, max: number): number {
   return min + Math.random() * (max - min);
@@ -190,6 +194,52 @@ function createCircles(width: number, height: number): Circle[] {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function updateZoom(deltaSeconds: number): void {
+  if (projectiles.length === 0) {
+    // Zoom wieder rein wenn keine Projektile mehr da sind
+    zoomLevel = Math.min(1.0, zoomLevel + (ZOOM_IN_SPEED * deltaSeconds));
+    return;
+  }
+
+  // Finde die maximalen Ausmasse aller Projektile
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+
+  for (const projectile of projectiles) {
+    minX = Math.min(minX, projectile.x);
+    maxX = Math.max(maxX, projectile.x);
+    minY = Math.min(minY, projectile.y);
+    maxY = Math.max(maxY, projectile.y);
+  }
+
+  // Berechne den benötigten Zoom-Level um alle Projektile mit Margin zu zeigen
+  const contentWidth = maxX - minX;
+  const contentHeight = maxY - minY;
+  const contentCenterX = (minX + maxX) / 2;
+  const contentCenterY = (minY + maxY) / 2;
+
+  // Berechne wie weit der Inhalt vom Bildschirmzentrum entfernt ist
+  const canvasCenterX = canvas.width / 2;
+  const canvasCenterY = canvas.height / 2;
+  
+  const offsetX = Math.abs(contentCenterX - canvasCenterX);
+  const offsetY = Math.abs(contentCenterY - canvasCenterY);
+
+  // Berechne die benötigte "Bounding Box" inklusive Projektilradius und Margin
+  const requiredWidth = contentWidth + (2 * PROJECTILE_RADIUS) + (2 * PROJECTILE_MARGIN_FROM_EDGE) + (2 * offsetX);
+  const requiredHeight = contentHeight + (2 * PROJECTILE_RADIUS) + (2 * PROJECTILE_MARGIN_FROM_EDGE) + (2 * offsetY);
+
+  // Berechne den Zoom-Level der benötigt wird
+  const zoomForWidth = canvas.width / requiredWidth;
+  const zoomForHeight = canvas.height / requiredHeight;
+  const requiredZoom = Math.min(zoomForWidth, zoomForHeight);
+
+  // Begrenze den Zoom-Level und setze ihn (sofortiges Anpassen für responsive Darstellung)
+  zoomLevel = Math.max(MIN_ZOOM, Math.min(1.0, requiredZoom));
 }
 
 function calculateAsteroidMass(radius: number): number {
@@ -355,22 +405,34 @@ function drawCenterCircles(): void {
   context.fillStyle = "#ffffff";
 
   for (const circle of circles) {
-	context.beginPath();
-	context.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
-	context.fill();
+    context.beginPath();
+    context.arc(
+      circle.x * zoomLevel + (canvas.width * (1 - zoomLevel)) / 2,
+      circle.y * zoomLevel + (canvas.height * (1 - zoomLevel)) / 2,
+      circle.radius * zoomLevel,
+      0,
+      Math.PI * 2
+    );
+    context.fill();
   }
 }
 
 function drawShip(): void {
   context.save();
-  context.translate(ship.x, ship.y);
+  
+  const zoomedX = ship.x * zoomLevel + (canvas.width * (1 - zoomLevel)) / 2;
+  const zoomedY = ship.y * zoomLevel + (canvas.height * (1 - zoomLevel)) / 2;
+  const zoomedLength = ship.length * zoomLevel;
+  const zoomedWidth = ship.width * zoomLevel;
+  
+  context.translate(zoomedX, zoomedY);
   context.rotate(ship.angle);
 
   context.fillStyle = "#ffffff";
   context.beginPath();
-  context.moveTo(ship.length / 2, 0);
-  context.lineTo(-ship.length / 2, -ship.width / 2);
-  context.lineTo(-ship.length / 2, ship.width / 2);
+  context.moveTo(zoomedLength / 2, 0);
+  context.lineTo(-zoomedLength / 2, -zoomedWidth / 2);
+  context.lineTo(-zoomedLength / 2, zoomedWidth / 2);
   context.closePath();
   context.fill();
 
@@ -381,8 +443,12 @@ function drawProjectiles(): void {
   context.fillStyle = "#ffffff";
 
   for (const projectile of projectiles) {
+    const zoomedX = projectile.x * zoomLevel + (canvas.width * (1 - zoomLevel)) / 2;
+    const zoomedY = projectile.y * zoomLevel + (canvas.height * (1 - zoomLevel)) / 2;
+    const zoomedRadius = PROJECTILE_RADIUS * zoomLevel;
+    
     context.beginPath();
-    context.arc(projectile.x, projectile.y, PROJECTILE_RADIUS, 0, Math.PI * 2);
+    context.arc(zoomedX, zoomedY, zoomedRadius, 0, Math.PI * 2);
     context.fill();
   }
 }
@@ -397,6 +463,8 @@ function render(now: number): void {
   updateBlink(now);
   updateShip(deltaSeconds);
   updateProjectiles(deltaSeconds, now);
+  updateZoom(deltaSeconds);
+  
   drawStars(now);
   drawCenterCircles();
   drawProjectiles();

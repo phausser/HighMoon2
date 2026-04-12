@@ -30,15 +30,16 @@ Nach dem Build `index.html` im Browser öffnen.
 ## Laufzeit-Architektur (`src/index.ts`)
 - Erstellt ein Fullscreen-Canvas und zeichnet pro Frame:
   1. Hintergrund
-  2. Sterne (inkl. Blinklogik)
-  3. Weiße Kreise in der Mitte
-  4. Projektile (kleine Kugeln)
-  5. Raumschiff (Dreieck)
+  2. Sterne (inkl. Blinklogik) - unverändert vom Zoom
+  3. Weiße Kreise in der Mitte (skaliert durch Zoom)
+  4. Projektile (kleine Kugeln, skaliert durch Zoom)
+  5. Raumschiff (Dreieck, skaliert durch Zoom)
 - Kernfunktionen:
   - `createStars(...)`, `drawStars(...)`, `updateBlink(...)`
   - `createCircles(...)`, `drawCenterCircles(...)`
   - `updateShip(...)`, `drawShip(...)`
   - `spawnProjectile(...)`, `updateProjectiles(...)`, `drawProjectiles(...)`
+  - `updateZoom(...)` - **Neue Zoom-Logik**
   - `render(...)`
 - Input:
   - `ArrowLeft` / `ArrowRight` drehen das Schiff
@@ -47,10 +48,11 @@ Nach dem Build `index.html` im Browser öffnen.
 - Projektil-Verhalten:
   - Fliegt geradlinig in aktueller Blickrichtung des Schiffs
   - Besteht maximal 5 Sekunden
+  - **Zoom-System**: Kamera zoomt automatisch heraus um alle Projektile mit 20px Margin sichtbar zu halten
 
 ## Arbeitsregeln für Agenten
 - Kleine, gezielte Änderungen bevorzugen; bestehendes Verhalten nur ändern, wenn angefordert.
-- Bei visuellen Parametern zuerst Konstanten anpassen (z. B. `STAR_*`, `MIN_CIRCLE_*`, `SHIP_*`) statt Logik groß umzubauen.
+- Bei visuellen Parametern zuerst Konstanten anpassen (z. B. `STAR_*`, `MIN_CIRCLE_*`, `SHIP_*`, `ZOOM_*`, `PROJECTILE_*`) statt Logik groß umzubauen.
 - Nach Codeänderungen TypeScript-Build ausführen und auf Fehler prüfen.
 - Keine unnötigen neuen Abhängigkeiten einführen.
 - Ausgabe bleibt browserbasiert über `index.html` + `dist/index.js`.

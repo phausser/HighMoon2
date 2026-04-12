@@ -18,11 +18,19 @@ Dieses Dokument definiert, wie Copilot in `HighMoon2` arbeiten soll.
 
 ## Aenderungen an der Szene
 - Passe zuerst Konstanten an, bevor Logik umgebaut wird.
-- Relevante Konstanten-Gruppen: `STAR_*`, `MIN_CIRCLE_*`, `MAX_CIRCLE_*`, `SHIP_*`, `PROJECTILE_*`.
+- Relevante Konstanten-Gruppen: `STAR_*`, `MIN_CIRCLE_*`, `MAX_CIRCLE_*`, `SHIP_*`, `PROJECTILE_*`, `ZOOM_*`.
 - Halte Render-Reihenfolge stabil, ausser es ist explizit angefragt.
 - Beachte, dass die Szene browserbasiert bleibt (kein Framework/Bundler einfuehren).
 - Standardverhalten beibehalten, sofern nicht anders gefordert: Schiff startet mittig und schaut nach links.
 - Projektilverhalten beibehalten, sofern nicht anders gefordert: Space schiesst eine kleine Kugel in Blickrichtung, geradlinig, max. 5 Sekunden Lebensdauer.
+- **Zoom-System**: Die Kamera zoomt automatisch heraus, wenn Projektile den Bildschirm verlassen wuerden, um diese mit 20px Margin sichtbar zu halten. Sterne bleiben unverändert, nur Vordergrund-Objekte (Schiff, Projektile, Asteroiden) werden skaliert.
+
+## Zoom-Verhalten
+- Automatisches Herauszoomen wenn Projektile außerhalb des sichtbaren Bereichs sind.
+- Präzise Berechnung des minimalen Zoom-Levels für alle Projektile mit `PROJECTILE_MARGIN_FROM_EDGE`.
+- Automatisches Reinzoomen auf 1.0 wenn keine Projektile mehr vorhanden sind.
+- Sternenhintergrund bleibt von Zoom unbeeinflusst.
+- Zoom-Level zwischen `MIN_ZOOM` und 1.0 begrenzt.
 
 ## Input und Interaktion
 - Vorhandene Steuerung mit Pfeiltasten nicht stillschweigend aendern.
