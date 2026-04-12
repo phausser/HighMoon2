@@ -34,6 +34,8 @@ const ENEMY_STAY_MAX_MS = 15000;
 const ENEMY_MOVE_MIN_PX = 50;
 const ENEMY_MOVE_MAX_PX = 150;
 const ENEMY_PROJECTILE_HOMING_ACCELERATION = 160;
+const ENEMY_ENTRY_SPEED = 300;
+const ENEMY_RESPAWN_DELAY_MS = 2000;
 const SHIP_COLOR = "#2244ff";
 
 const canvas = document.createElement("canvas");
@@ -100,6 +102,8 @@ type EnemyShipState = {
   active: boolean;
   targetY: number;
   nextMoveAt: number;
+  entering: boolean;
+  respawnAt: number;
 };
 
 let stars: Star[] = [];
@@ -128,6 +132,8 @@ let enemyShip: EnemyShipState = {
   active: true,
   targetY: 0,
   nextMoveAt: -1,
+  entering: false,
+  respawnAt: -1,
 };
 const input: InputState = {
   left: false,
@@ -365,8 +371,20 @@ function initializeEnemyShip(width: number, height: number): void {
   enemyShip.targetY = enemyShip.y;
 }
 
-function spawnEnemyProjectile(now: number): void {
-  const aimAngle = Math.atan2(ship.y - enemyShip.y, ship.x - enemyShip.x);
+function respawnEnemyShip(now: number): void {
+  enemyShip.x = -enemyShip.length * 2;
+  enemyShip.y = randomBetween(enemyShip.length / 2, canvas.height - enemyShip.length / 2);
+  enemyShip.angle = 0;
+  enemyShip.energy = ENEMY_MAX_ENERGY;
+  enemyShip.active = true;
+  enemyShip.entering = true;
+  enemyShip.lastFiredAt = now;
+  enemyShip.nextMoveAt = -1;
+  enemyShip.targetY = enemyShip.y;
+  enemyShip.respawnAt = -1;
+}
+
+function spawnEnemyProjectile(now: number): void {  const aimAngle = Math.atan2(ship.y - enemyShip.y, ship.x - enemyShip.x);
   const spread = (Math.random() - 0.5) * 2 * ENEMY_AIM_SPREAD_RAD;
   const finalAngle = aimAngle + spread;
   const directionX = Math.cos(finalAngle);
@@ -405,7 +423,24 @@ function updateShip(deltaSeconds: number): void {
 }
 
 function updateEnemyShip(deltaSeconds: number, now: number): void {
-  if (!enemyShip.active) return;
+  if (!enemyShip.active) {
+    if (enemyShip.respawnAt >= 0 && now >= enemyShip.respawnAt) {
+      respawnEnemyShip(now);
+    }
+    return;
+  }
+
+  // Entry-Phase: Schiff fliegt von links ins Spielfeld
+  if (enemyShip.entering) {
+    enemyShip.x += ENEMY_ENTRY_SPEED * deltaSeconds;
+    enemyShip.angle = 0;
+    if (enemyShip.x >= ENEMY_MARGIN_LEFT) {
+      enemyShip.x = ENEMY_MARGIN_LEFT;
+      enemyShip.entering = false;
+      enemyShip.nextMoveAt = now + randomBetween(ENEMY_STAY_MIN_MS, ENEMY_STAY_MAX_MS);
+    }
+    return;
+  }
 
   // Beim ersten Aufruf: Wartezeit vor der ersten Bewegung festlegen
   if (enemyShip.nextMoveAt < 0) {
@@ -479,6 +514,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
       enemyShip.energy = Math.max(0, enemyShip.energy - projectileEnergy);
       if (enemyShip.energy <= 0) {
         enemyShip.active = false;
+        enemyShip.respawnAt = now + ENEMY_RESPAWN_DELAY_MS;
       }
       continue;
     }
@@ -528,6 +564,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
       enemyShip.energy = Math.max(0, enemyShip.energy - projectileEnergy);
       if (enemyShip.energy <= 0) {
         enemyShip.active = false;
+        enemyShip.respawnAt = now + ENEMY_RESPAWN_DELAY_MS;
       }
       continue;
     }
