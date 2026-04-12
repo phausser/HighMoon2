@@ -11,6 +11,10 @@ const SHIP_MARGIN_RIGHT = 120;
 const PROJECTILE_RADIUS = 4;
 const PROJECTILE_SPEED = 420;
 const PROJECTILE_MAX_LIFETIME_MS = 5000;
+const PROJECTILE_GRAVITY_CONSTANT = 700;
+const PROJECTILE_GRAVITY_MIN_DISTANCE = 18;
+const PROJECTILE_MAX_GRAVITY_ACCELERATION = 2600;
+const ASTEROID_DENSITY = 0.0024;
 
 const canvas = document.createElement("canvas");
 const contextMaybe = canvas.getContext("2d");
@@ -34,6 +38,7 @@ type Circle = {
   x: number;
   y: number;
   radius: number;
+  mass: number;
 };
 
 type ShipState = {
@@ -134,7 +139,10 @@ function createCircles(width: number, height: number): Circle[] {
         x: randomBetween(minX, maxX),
         y: randomBetween(minY, maxY),
         radius: randomBetween(MIN_CIRCLE_RADIUS, MAX_CIRCLE_RADIUS),
+        mass: 0,
       };
+
+      candidate.mass = calculateAsteroidMass(candidate.radius);
 
       let smallestEdgeGap = Infinity;
 
@@ -165,7 +173,12 @@ function createCircles(width: number, height: number): Circle[] {
           x: randomBetween(minX, maxX),
           y: randomBetween(minY, maxY),
           radius: randomBetween(MIN_CIRCLE_RADIUS, MAX_CIRCLE_RADIUS),
+          mass: 0,
         };
+
+      if (selected.mass === 0) {
+        selected.mass = calculateAsteroidMass(selected.radius);
+      }
     }
 
     result.push(selected);
@@ -176,6 +189,11 @@ function createCircles(width: number, height: number): Circle[] {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function calculateAsteroidMass(radius: number): number {
+  // Vereinfachtes 3D-Modell: Masse skaliert mit Kugelvolumen.
+  return ASTEROID_DENSITY * ((4 / 3) * Math.PI * radius * radius * radius);
 }
 
 function initializeOrClampShip(width: number, height: number): void {
@@ -266,6 +284,29 @@ function updateBlink(now: number): void {
 
 function updateProjectiles(deltaSeconds: number, now: number): void {
   for (const projectile of projectiles) {
+    let accelerationX = 0;
+    let accelerationY = 0;
+
+    for (const circle of circles) {
+      const dx = circle.x - projectile.x;
+      const dy = circle.y - projectile.y;
+      const distanceSquared = dx * dx + dy * dy;
+      const minDistance = Math.max(PROJECTILE_GRAVITY_MIN_DISTANCE, circle.radius * 0.35);
+      const clampedDistanceSquared = Math.max(distanceSquared, minDistance * minDistance);
+      const distance = Math.sqrt(clampedDistanceSquared);
+      const directionX = dx / distance;
+      const directionY = dy / distance;
+      const accelerationMagnitude = Math.min(
+        (PROJECTILE_GRAVITY_CONSTANT * circle.mass) / clampedDistanceSquared,
+        PROJECTILE_MAX_GRAVITY_ACCELERATION,
+      );
+
+      accelerationX += directionX * accelerationMagnitude;
+      accelerationY += directionY * accelerationMagnitude;
+    }
+
+    projectile.vx += accelerationX * deltaSeconds;
+    projectile.vy += accelerationY * deltaSeconds;
     projectile.x += projectile.vx * deltaSeconds;
     projectile.y += projectile.vy * deltaSeconds;
   }
