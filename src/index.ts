@@ -178,6 +178,7 @@ let playerLastMovedAt = 0;
 let playerStillCheckX = 0;
 let playerStillCheckY = 0;
 let gameActive = false;
+let score = 0;
 
 function randomBetween(min: number, max: number): number {
   return min + Math.random() * (max - min);
@@ -683,6 +684,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
       if (enemyShip.energy <= 0) {
         enemyShip.active = false;
         enemyShip.respawnAt = now + ENEMY_RESPAWN_DELAY_MS;
+        score += 10;
       }
       continue;
     }
@@ -738,6 +740,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
       if (enemyShip.energy <= 0) {
         enemyShip.active = false;
         enemyShip.respawnAt = now + ENEMY_RESPAWN_DELAY_MS;
+        score += 10;
       }
       continue;
     }
@@ -1016,11 +1019,20 @@ function render(now: number): void {
 
   context.restore();
 
+  // Score-Overlay oben mittig
+  context.save();
+  context.font = "normal 20px 'Varela Round', monospace";
+  context.textAlign = "center";
+  context.textBaseline = "top";
+  context.fillStyle = "rgba(255, 255, 255, 0.85)";
+  context.fillText(`SCORE ${("00000" + score).slice(-5)}`, canvas.width / 2, 16);
+  context.restore();
+
   // Prompt anzeigen wenn Spiel nicht aktiv (blinkt synchron mit dem Schiff)
   if (!gameActive && Math.floor(performance.now() / 300) % 2 !== 0) {
     const promptText = ship.energy <= 0 ? "GAME OVER – PRESS SPACE" : "PRESS SPACE TO START";
     context.save();
-    context.font = "bold 32px 'Doto', monospace";
+    context.font = "normal 20px 'Varela Round', monospace";
     context.textAlign = "center";
     context.textBaseline = "middle";
     context.fillStyle = "rgba(255, 255, 255, 0.85)";
@@ -1071,6 +1083,7 @@ window.addEventListener("keydown", (event) => {
     if (!gameActive) {
       gameActive = true;
       ship.energy = SHIP_MAX_ENERGY;
+      score = 0;
       projectiles = [];
       enemyProjectiles = [];
     } else {
