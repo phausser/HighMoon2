@@ -17,7 +17,8 @@ const PROJECTILE_MAX_GRAVITY_ACCELERATION = 4200;
 const PROJECTILE_COLLISION_MARGIN = 0;
 const ASTEROID_DENSITY = 0.0024;
 const ZOOM_IN_SPEED = 1.2;
-const MIN_ZOOM = 0.2;
+const ZOOM_OUT_SPEED = 2.0;
+const MIN_ZOOM = 0.5;
 const PROJECTILE_MARGIN_FROM_EDGE = 20;
 const SHIP_MAX_ENERGY = 100;
 const ENERGY_BAR_WIDTH = 20;
@@ -276,21 +277,20 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function updateZoom(deltaSeconds: number): void {
-  const allProjectiles = [...projectiles, ...enemyProjectiles];
-
-  if (allProjectiles.length === 0) {
-    // Zoom wieder rein wenn keine Projektile mehr da sind
+  // Zoom nur anhand der Spieler-Projektile berechnen; Feind-Projektile werden ignoriert
+  if (projectiles.length === 0) {
+    // Zoom wieder rein wenn keine Spieler-Projektile mehr da sind
     zoomLevel = Math.min(1.0, zoomLevel + (ZOOM_IN_SPEED * deltaSeconds));
     return;
   }
 
-  // Finde die maximalen Ausmasse aller Projektile
+  // Finde die maximalen Ausmasse der Spieler-Projektile
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
   let maxY = -Infinity;
 
-  for (const projectile of allProjectiles) {
+  for (const projectile of projectiles) {
     minX = Math.min(minX, projectile.x);
     maxX = Math.max(maxX, projectile.x);
     minY = Math.min(minY, projectile.y);
@@ -317,10 +317,14 @@ function updateZoom(deltaSeconds: number): void {
   // Berechne den Zoom-Level der benötigt wird
   const zoomForWidth = canvas.width / requiredWidth;
   const zoomForHeight = canvas.height / requiredHeight;
-  const requiredZoom = Math.min(zoomForWidth, zoomForHeight);
+  const targetZoom = Math.max(MIN_ZOOM, Math.min(1.0, Math.min(zoomForWidth, zoomForHeight)));
 
-  // Begrenze den Zoom-Level und setze ihn (sofortiges Anpassen für responsive Darstellung)
-  zoomLevel = Math.max(MIN_ZOOM, Math.min(1.0, requiredZoom));
+  // Sanft zum Ziel-Zoom bewegen – kein Rucken in beide Richtungen
+  if (targetZoom < zoomLevel) {
+    zoomLevel = Math.max(targetZoom, zoomLevel - ZOOM_OUT_SPEED * deltaSeconds);
+  } else {
+    zoomLevel = Math.min(targetZoom, zoomLevel + ZOOM_IN_SPEED * deltaSeconds);
+  }
 }
 
 function calculateAsteroidMass(radius: number): number {
