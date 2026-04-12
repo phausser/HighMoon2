@@ -11,9 +11,10 @@ const SHIP_MARGIN_RIGHT = 120;
 const PROJECTILE_RADIUS = 4;
 const PROJECTILE_SPEED = 420;
 const PROJECTILE_MAX_LIFETIME_MS = 5000;
-const PROJECTILE_GRAVITY_CONSTANT = 700;
+const PROJECTILE_GRAVITY_CONSTANT = 5000;
 const PROJECTILE_GRAVITY_MIN_DISTANCE = 18;
-const PROJECTILE_MAX_GRAVITY_ACCELERATION = 2600;
+const PROJECTILE_MAX_GRAVITY_ACCELERATION = 4200;
+const PROJECTILE_COLLISION_MARGIN = 0;
 const ASTEROID_DENSITY = 0.0024;
 
 const canvas = document.createElement("canvas");
@@ -196,6 +197,13 @@ function calculateAsteroidMass(radius: number): number {
   return ASTEROID_DENSITY * ((4 / 3) * Math.PI * radius * radius * radius);
 }
 
+function isProjectileCollidingWithAsteroid(projectileX: number, projectileY: number, circle: Circle): boolean {
+  const dx = circle.x - projectileX;
+  const dy = circle.y - projectileY;
+  const collisionDistance = circle.radius + PROJECTILE_RADIUS + PROJECTILE_COLLISION_MARGIN;
+  return dx * dx + dy * dy <= collisionDistance * collisionDistance;
+}
+
 function initializeOrClampShip(width: number, height: number): void {
   if (ship.x === 0 && ship.y === 0) {
     ship.x = width - SHIP_MARGIN_RIGHT;
@@ -283,7 +291,13 @@ function updateBlink(now: number): void {
 }
 
 function updateProjectiles(deltaSeconds: number, now: number): void {
+  const survivingProjectiles: Projectile[] = [];
+
   for (const projectile of projectiles) {
+    if (circles.some((circle) => isProjectileCollidingWithAsteroid(projectile.x, projectile.y, circle))) {
+      continue;
+    }
+
     let accelerationX = 0;
     let accelerationY = 0;
 
@@ -309,9 +323,15 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
     projectile.vy += accelerationY * deltaSeconds;
     projectile.x += projectile.vx * deltaSeconds;
     projectile.y += projectile.vy * deltaSeconds;
+
+    if (circles.some((circle) => isProjectileCollidingWithAsteroid(projectile.x, projectile.y, circle))) {
+      continue;
+    }
+
+    survivingProjectiles.push(projectile);
   }
 
-  projectiles = projectiles.filter(
+  projectiles = survivingProjectiles.filter(
     (projectile) => now - projectile.createdAt <= PROJECTILE_MAX_LIFETIME_MS,
   );
 }
