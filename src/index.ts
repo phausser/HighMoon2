@@ -33,6 +33,8 @@ const ENEMY_STAY_MIN_MS = 10000;
 const ENEMY_STAY_MAX_MS = 15000;
 const ENEMY_MOVE_MIN_PX = 50;
 const ENEMY_MOVE_MAX_PX = 150;
+const ENEMY_PROJECTILE_HOMING_ACCELERATION = 160;
+const SHIP_COLOR = "#2244ff";
 
 const canvas = document.createElement("canvas");
 const contextMaybe = canvas.getContext("2d");
@@ -574,6 +576,15 @@ function updateEnemyProjectiles(deltaSeconds: number, now: number): void {
       accelerationY += directionY * accelerationMagnitude;
     }
 
+    // Homing: Lenkbeschleunigung Richtung Spielerschiff
+    const homingDx = ship.x - projectile.x;
+    const homingDy = ship.y - projectile.y;
+    const homingDist = Math.hypot(homingDx, homingDy);
+    if (homingDist > 0) {
+      accelerationX += (homingDx / homingDist) * ENEMY_PROJECTILE_HOMING_ACCELERATION;
+      accelerationY += (homingDy / homingDist) * ENEMY_PROJECTILE_HOMING_ACCELERATION;
+    }
+
     projectile.vx += accelerationX * deltaSeconds;
     projectile.vy += accelerationY * deltaSeconds;
     projectile.x += projectile.vx * deltaSeconds;
@@ -654,7 +665,7 @@ function drawShip(): void {
   context.translate(zoomedX, zoomedY);
   context.rotate(ship.angle);
 
-  context.fillStyle = "#ffffff";
+  context.fillStyle = SHIP_COLOR;
   context.beginPath();
   context.moveTo(zoomedLength / 2, 0);
   context.lineTo(-zoomedLength / 2, -zoomedWidth / 2);
