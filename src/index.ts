@@ -694,28 +694,28 @@ function drawEnemyShip(): void {
   drawEnergyBar(zoomedX, zoomedY, enemyShip.energy, ENEMY_MAX_ENERGY);
 }
 
-function drawProjectiles(): void {
-  context.fillStyle = "#ffffff";
-
+function drawProjectiles(now: number): void {
   for (const projectile of projectiles) {
+    const alpha = Math.max(0, 1 - (now - projectile.createdAt) / PROJECTILE_MAX_LIFETIME_MS);
     const zoomedX = projectile.x * zoomLevel + (canvas.width * (1 - zoomLevel)) / 2;
     const zoomedY = projectile.y * zoomLevel + (canvas.height * (1 - zoomLevel)) / 2;
     const zoomedRadius = PROJECTILE_RADIUS * zoomLevel;
-    
+
+    context.fillStyle = `rgba(255, 255, 255, ${alpha})`;
     context.beginPath();
     context.arc(zoomedX, zoomedY, zoomedRadius, 0, Math.PI * 2);
     context.fill();
   }
 }
 
-function drawEnemyProjectiles(): void {
-  context.fillStyle = "#ff4444";
-
+function drawEnemyProjectiles(now: number): void {
   for (const projectile of enemyProjectiles) {
+    const alpha = Math.max(0, 1 - (now - projectile.createdAt) / PROJECTILE_MAX_LIFETIME_MS);
     const zoomedX = projectile.x * zoomLevel + (canvas.width * (1 - zoomLevel)) / 2;
     const zoomedY = projectile.y * zoomLevel + (canvas.height * (1 - zoomLevel)) / 2;
     const zoomedRadius = PROJECTILE_RADIUS * zoomLevel;
 
+    context.fillStyle = `rgba(255, 68, 68, ${alpha})`;
     context.beginPath();
     context.arc(zoomedX, zoomedY, zoomedRadius, 0, Math.PI * 2);
     context.fill();
@@ -738,8 +738,8 @@ function render(now: number): void {
   
   drawStars(now);
   drawCenterCircles();
-  drawProjectiles();
-  drawEnemyProjectiles();
+  drawProjectiles(now);
+  drawEnemyProjectiles(now);
   drawEnemyShip();
   drawShip();
 
