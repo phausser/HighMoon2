@@ -8,6 +8,9 @@ const MIN_CIRCLE_GAP = 14;
 const MAX_ATTEMPTS_PER_CIRCLE = 240;
 const STAR_ALPHA_LEVELS = [0.52, 0.68, 0.82, 0.95];
 const SHIP_MARGIN_RIGHT = 120;
+const PROJECTILE_RADIUS = 4;
+const PROJECTILE_SPEED = 420;
+const PROJECTILE_MAX_LIFETIME_MS = 5000;
 
 const canvas = document.createElement("canvas");
 const contextMaybe = canvas.getContext("2d");
@@ -50,12 +53,21 @@ type InputState = {
   down: boolean;
 };
 
+type Projectile = {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  createdAt: number;
+};
+
 let stars: Star[] = [];
 let circles: Circle[] = [];
+let projectiles: Projectile[] = [];
 let ship: ShipState = {
   x: 0,
   y: 0,
-  angle: 0,
+  angle: Math.PI,
   length: 33,
   width: 20,
   speedY: 220,
@@ -170,11 +182,26 @@ function initializeOrClampShip(width: number, height: number): void {
   if (ship.x === 0 && ship.y === 0) {
     ship.x = width - SHIP_MARGIN_RIGHT;
     ship.y = height / 2;
+    ship.angle = Math.PI;
   }
 
   const halfLength = ship.length / 2;
   ship.x = clamp(ship.x, halfLength, width - halfLength);
   ship.y = clamp(ship.y, halfLength, height - halfLength);
+}
+
+function spawnProjectile(now: number): void {
+  const directionX = Math.cos(ship.angle);
+  const directionY = Math.sin(ship.angle);
+  const noseOffset = ship.length / 2;
+
+  projectiles.push({
+    x: ship.x + directionX * noseOffset,
+    y: ship.y + directionY * noseOffset,
+    vx: directionX * PROJECTILE_SPEED,
+    vy: directionY * PROJECTILE_SPEED,
+    createdAt: now,
+  });
 }
 
 function resizeCanvas(): void {
@@ -237,13 +264,23 @@ function updateBlink(now: number): void {
   }
 }
 
+function updateProjectiles(deltaSeconds: number, now: number): void {
+  for (const projectile of projectiles) {
+    projectile.x += projectile.vx * deltaSeconds;
+    projectile.y += projectile.vy * deltaSeconds;
+  }
+
+  projectiles = projectiles.filter(
+    (projectile) => now - projectile.createdAt <= PROJECTILE_MAX_LIFETIME_MS,
+  );
+}
+
 function drawStars(now: number): void {
   for (let index = 0; index < stars.length; index += 1) {
 	const star = stars[index];
 	let alpha = star.alpha;
 
 	if (index === blinkingStarIndex) {
-      console.log(`Blink! Star at (${star.x}, ${star.y})`);
 	  // Pulsiert leicht waehrend der kurzen Blinkphase.
       alpha = 0.1 + Math.abs(Math.sin(now * 0.045)) * 0.9;
 	}
@@ -279,6 +316,16 @@ function drawShip(): void {
   context.restore();
 }
 
+function drawProjectiles(): void {
+  context.fillStyle = "#ffffff";
+
+  for (const projectile of projectiles) {
+    context.beginPath();
+    context.arc(projectile.x, projectile.y, PROJECTILE_RADIUS, 0, Math.PI * 2);
+    context.fill();
+  }
+}
+
 function render(now: number): void {
   const deltaSeconds = lastFrameTime === 0 ? 0 : (now - lastFrameTime) / 1000;
   lastFrameTime = now;
@@ -288,8 +335,10 @@ function render(now: number): void {
 
   updateBlink(now);
   updateShip(deltaSeconds);
+  updateProjectiles(deltaSeconds, now);
   drawStars(now);
   drawCenterCircles();
+  drawProjectiles();
   drawShip();
 
   requestAnimationFrame(render);
@@ -299,13 +348,18 @@ resizeCanvas();
 nextBlinkAt = performance.now() + randomBetween(600, 1800);
 window.addEventListener("resize", resizeCanvas);
 window.addEventListener("keydown", (event) => {
-  if (event.key.startsWith("Arrow")) {
+  if (event.key.startsWith("Arrow") || event.code === "Space") {
     event.preventDefault();
   }
+
+  if (event.code === "Space" && !event.repeat) {
+    spawnProjectile(performance.now());
+  }
+
   setInputByKey(event.key, true);
 });
 window.addEventListener("keyup", (event) => {
-  if (event.key.startsWith("Arrow")) {
+  if (event.key.startsWith("Arrow") || event.code === "Space") {
     event.preventDefault();
   }
   setInputByKey(event.key, false);

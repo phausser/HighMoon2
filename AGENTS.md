@@ -10,6 +10,7 @@ Dieses Dokument gibt Agenten einen schnellen, verlässlichen Überblick über da
 - Einstiegscode: `src/index.ts`
 - Kompilat: `dist/index.js`
 - HTML-Einstieg: `index.html` lädt `dist/index.js`
+- Schiff schaut initial nach links.
 
 ## Relevante Dateien
 - `package.json`: Build-Skript und Abhängigkeiten
@@ -31,15 +32,21 @@ Nach dem Build `index.html` im Browser öffnen.
   1. Hintergrund
   2. Sterne (inkl. Blinklogik)
   3. Weiße Kreise in der Mitte
-  4. Raumschiff (Dreieck)
+  4. Projektile (kleine Kugeln)
+  5. Raumschiff (Dreieck)
 - Kernfunktionen:
   - `createStars(...)`, `drawStars(...)`, `updateBlink(...)`
   - `createCircles(...)`, `drawCenterCircles(...)`
   - `updateShip(...)`, `drawShip(...)`
+  - `spawnProjectile(...)`, `updateProjectiles(...)`, `drawProjectiles(...)`
   - `render(...)`
 - Input:
   - `ArrowLeft` / `ArrowRight` drehen das Schiff
   - `ArrowUp` / `ArrowDown` bewegen das Schiff vertikal
+  - `Space` schiesst eine kleine Kugel in Blickrichtung
+- Projektil-Verhalten:
+  - Fliegt geradlinig in aktueller Blickrichtung des Schiffs
+  - Besteht maximal 5 Sekunden
 
 ## Arbeitsregeln für Agenten
 - Kleine, gezielte Änderungen bevorzugen; bestehendes Verhalten nur ändern, wenn angefordert.
