@@ -19,6 +19,11 @@ const ASTEROID_DENSITY = 0.0024;
 const ZOOM_IN_SPEED = 1.2;
 const MIN_ZOOM = 0.2;
 const PROJECTILE_MARGIN_FROM_EDGE = 20;
+const SHIP_MAX_ENERGY = 100;
+const ENERGY_BAR_WIDTH = 40;
+const ENERGY_BAR_HEIGHT = 2;
+const ENERGY_BAR_OFFSET_Y = 25;
+const PROJECTILE_SHIP_COLLISION_GRACE_MS = 200;
 
 const canvas = document.createElement("canvas");
 const contextMaybe = canvas.getContext("2d");
@@ -53,6 +58,7 @@ type ShipState = {
   width: number;
   speedY: number;
   turnSpeed: number;
+  energy: number;
 };
 
 type InputState = {
@@ -68,6 +74,7 @@ type Projectile = {
   vx: number;
   vy: number;
   createdAt: number;
+  canHitShipAfter: number;
 };
 
 let stars: Star[] = [];
@@ -81,6 +88,7 @@ let ship: ShipState = {
   width: 20,
   speedY: 220,
   turnSpeed: 2.8,
+  energy: SHIP_MAX_ENERGY,
 };
 const input: InputState = {
   left: false,
@@ -254,6 +262,20 @@ function isProjectileCollidingWithAsteroid(projectileX: number, projectileY: num
   return dx * dx + dy * dy <= collisionDistance * collisionDistance;
 }
 
+function isProjectileCollidingWithShip(projectileX: number, projectileY: number): boolean {
+  const dx = ship.x - projectileX;
+  const dy = ship.y - projectileY;
+  const shipCollisionRadius = Math.max(ship.length, ship.width) / 2;
+  const collisionDistance = shipCollisionRadius + PROJECTILE_RADIUS + PROJECTILE_COLLISION_MARGIN;
+  return dx * dx + dy * dy <= collisionDistance * collisionDistance;
+}
+
+function calculateProjectileEnergy(projectile: Projectile, now: number): number {
+  const age = now - projectile.createdAt;
+  const energyPercent = Math.max(0, 1 - (age / PROJECTILE_MAX_LIFETIME_MS));
+  return energyPercent * 100;
+}
+
 function initializeOrClampShip(width: number, height: number): void {
   if (ship.x === 0 && ship.y === 0) {
     ship.x = width - SHIP_MARGIN_RIGHT;
@@ -277,6 +299,7 @@ function spawnProjectile(now: number): void {
     vx: directionX * PROJECTILE_SPEED,
     vy: directionY * PROJECTILE_SPEED,
     createdAt: now,
+    canHitShipAfter: now + PROJECTILE_SHIP_COLLISION_GRACE_MS,
   });
 }
 
@@ -344,8 +367,16 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
   const survivingProjectiles: Projectile[] = [];
 
   for (const projectile of projectiles) {
+    // Kollision mit Asteroiden prüfen
     if (circles.some((circle) => isProjectileCollidingWithAsteroid(projectile.x, projectile.y, circle))) {
       continue;
+    }
+
+    // Kollision mit Schiff prüfen (nur nach Grace Period)
+    if (now >= projectile.canHitShipAfter && isProjectileCollidingWithShip(projectile.x, projectile.y)) {
+      const projectileEnergy = calculateProjectileEnergy(projectile, now);
+      ship.energy = Math.max(0, ship.energy - projectileEnergy);
+      continue; // Projektil wird zerstört
     }
 
     let accelerationX = 0;
@@ -374,8 +405,16 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
     projectile.x += projectile.vx * deltaSeconds;
     projectile.y += projectile.vy * deltaSeconds;
 
+    // Nochmalige Kollisionsprüfung nach Bewegung
     if (circles.some((circle) => isProjectileCollidingWithAsteroid(projectile.x, projectile.y, circle))) {
       continue;
+    }
+
+    // Nochmalige Schiffskollisionsprüfung nach Bewegung (nur nach Grace Period)
+    if (now >= projectile.canHitShipAfter && isProjectileCollidingWithShip(projectile.x, projectile.y)) {
+      const projectileEnergy = calculateProjectileEnergy(projectile, now);
+      ship.energy = Math.max(0, ship.energy - projectileEnergy);
+      continue; // Projektil wird zerstört
     }
 
     survivingProjectiles.push(projectile);
@@ -437,6 +476,28 @@ function drawShip(): void {
   context.fill();
 
   context.restore();
+
+  // Energiebalken über dem Schiff zeichnen
+  drawEnergyBar(zoomedX, zoomedY);
+}
+
+function drawEnergyBar(shipX: number, shipY: number): void {
+  const barX = shipX - (ENERGY_BAR_WIDTH * zoomLevel) / 2;
+  const barY = shipY - (ENERGY_BAR_OFFSET_Y * zoomLevel);
+  const barWidth = ENERGY_BAR_WIDTH * zoomLevel;
+  const barHeight = ENERGY_BAR_HEIGHT * zoomLevel;
+
+  // Hintergrund des Energiebalkens (dunkelgrau)
+  context.fillStyle = "#333333";
+  context.fillRect(barX, barY, barWidth, barHeight);
+
+  // Energiebalken (grün oder rot, proportional zur aktuellen Energie)
+  const energyPercent = ship.energy / SHIP_MAX_ENERGY;
+  const energyWidth = barWidth * energyPercent;
+
+  // Rot wenn unter 25%, sonst grün
+  context.fillStyle = energyPercent < 0.25 ? "#ff0000" : "#00ff00";
+  context.fillRect(barX, barY, energyWidth, barHeight);
 }
 
 function drawProjectiles(): void {
