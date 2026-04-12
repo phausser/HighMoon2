@@ -24,6 +24,15 @@ const ENERGY_BAR_WIDTH = 20;
 const ENERGY_BAR_HEIGHT = 2;
 const ENERGY_BAR_OFFSET_Y = 25;
 const PROJECTILE_SHIP_COLLISION_GRACE_MS = 200;
+const ENEMY_MARGIN_LEFT = 120;
+const ENEMY_MAX_ENERGY = 100;
+const ENEMY_SPEED_Y = 180;
+const ENEMY_FIRE_INTERVAL_MS = 2000;
+const ENEMY_AIM_SPREAD_RAD = 0.12;
+const ENEMY_STAY_MIN_MS = 10000;
+const ENEMY_STAY_MAX_MS = 15000;
+const ENEMY_MOVE_MIN_PX = 50;
+const ENEMY_MOVE_MAX_PX = 150;
 
 const canvas = document.createElement("canvas");
 const contextMaybe = canvas.getContext("2d");
@@ -77,9 +86,24 @@ type Projectile = {
   canHitShipAfter: number;
 };
 
+type EnemyShipState = {
+  x: number;
+  y: number;
+  angle: number;
+  length: number;
+  width: number;
+  speedY: number;
+  energy: number;
+  lastFiredAt: number;
+  active: boolean;
+  targetY: number;
+  nextMoveAt: number;
+};
+
 let stars: Star[] = [];
 let circles: Circle[] = [];
 let projectiles: Projectile[] = [];
+let enemyProjectiles: Projectile[] = [];
 let ship: ShipState = {
   x: 0,
   y: 0,
@@ -89,6 +113,19 @@ let ship: ShipState = {
   speedY: 220,
   turnSpeed: 2.8,
   energy: SHIP_MAX_ENERGY,
+};
+let enemyShip: EnemyShipState = {
+  x: 0,
+  y: 0,
+  angle: 0,
+  length: 33,
+  width: 20,
+  speedY: ENEMY_SPEED_Y,
+  energy: ENEMY_MAX_ENERGY,
+  lastFiredAt: -Infinity,
+  active: true,
+  targetY: 0,
+  nextMoveAt: -1,
 };
 const input: InputState = {
   left: false,
@@ -205,7 +242,9 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function updateZoom(deltaSeconds: number): void {
-  if (projectiles.length === 0) {
+  const allProjectiles = [...projectiles, ...enemyProjectiles];
+
+  if (allProjectiles.length === 0) {
     // Zoom wieder rein wenn keine Projektile mehr da sind
     zoomLevel = Math.min(1.0, zoomLevel + (ZOOM_IN_SPEED * deltaSeconds));
     return;
@@ -217,7 +256,7 @@ function updateZoom(deltaSeconds: number): void {
   let minY = Infinity;
   let maxY = -Infinity;
 
-  for (const projectile of projectiles) {
+  for (const projectile of allProjectiles) {
     minX = Math.min(minX, projectile.x);
     maxX = Math.max(maxX, projectile.x);
     minY = Math.min(minY, projectile.y);
@@ -262,12 +301,22 @@ function isProjectileCollidingWithAsteroid(projectileX: number, projectileY: num
   return dx * dx + dy * dy <= collisionDistance * collisionDistance;
 }
 
-function isProjectileCollidingWithShip(projectileX: number, projectileY: number): boolean {
-  const dx = ship.x - projectileX;
-  const dy = ship.y - projectileY;
-  const shipCollisionRadius = Math.max(ship.length, ship.width) / 2;
-  const collisionDistance = shipCollisionRadius + PROJECTILE_RADIUS + PROJECTILE_COLLISION_MARGIN;
+function isProjectileCollidingWithTarget(
+  projectileX: number,
+  projectileY: number,
+  targetX: number,
+  targetY: number,
+  targetCollisionRadius: number,
+): boolean {
+  const dx = targetX - projectileX;
+  const dy = targetY - projectileY;
+  const collisionDistance = targetCollisionRadius + PROJECTILE_RADIUS + PROJECTILE_COLLISION_MARGIN;
   return dx * dx + dy * dy <= collisionDistance * collisionDistance;
+}
+
+function isProjectileCollidingWithShip(projectileX: number, projectileY: number): boolean {
+  const shipCollisionRadius = Math.max(ship.length, ship.width) / 2;
+  return isProjectileCollidingWithTarget(projectileX, projectileY, ship.x, ship.y, shipCollisionRadius);
 }
 
 function calculateProjectileEnergy(projectile: Projectile, now: number): number {
@@ -303,31 +352,33 @@ function spawnProjectile(now: number): void {
   });
 }
 
-function resizeCanvas(): void {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  stars = createStars(canvas.width, canvas.height);
-  circles = createCircles(canvas.width, canvas.height);
-  initializeOrClampShip(canvas.width, canvas.height);
+function initializeEnemyShip(width: number, height: number): void {
+  if (enemyShip.x === 0 && enemyShip.y === 0) {
+    enemyShip.x = ENEMY_MARGIN_LEFT;
+    enemyShip.y = height / 2;
+  }
+  const halfLength = enemyShip.length / 2;
+  enemyShip.x = clamp(enemyShip.x, halfLength, width - halfLength);
+  enemyShip.y = clamp(enemyShip.y, halfLength, height - halfLength);
+  enemyShip.targetY = enemyShip.y;
 }
 
-function setInputByKey(key: string, isPressed: boolean): void {
-  switch (key) {
-    case "ArrowLeft":
-	  input.left = isPressed;
-	  break;
-    case "ArrowRight":
-	  input.right = isPressed;
-	  break;
-    case "ArrowUp":
-	  input.up = isPressed;
-	  break;
-    case "ArrowDown":
-	  input.down = isPressed;
-	  break;
-    default:
-	  break;
-  }
+function spawnEnemyProjectile(now: number): void {
+  const aimAngle = Math.atan2(ship.y - enemyShip.y, ship.x - enemyShip.x);
+  const spread = (Math.random() - 0.5) * 2 * ENEMY_AIM_SPREAD_RAD;
+  const finalAngle = aimAngle + spread;
+  const directionX = Math.cos(finalAngle);
+  const directionY = Math.sin(finalAngle);
+  const noseOffset = enemyShip.length / 2;
+
+  enemyProjectiles.push({
+    x: enemyShip.x + directionX * noseOffset,
+    y: enemyShip.y + directionY * noseOffset,
+    vx: directionX * PROJECTILE_SPEED,
+    vy: directionY * PROJECTILE_SPEED,
+    createdAt: now,
+    canHitShipAfter: now + PROJECTILE_SHIP_COLLISION_GRACE_MS,
+  });
 }
 
 function updateShip(deltaSeconds: number): void {
@@ -351,6 +402,45 @@ function updateShip(deltaSeconds: number): void {
   ship.y = clamp(ship.y, halfLength, canvas.height - halfLength);
 }
 
+function updateEnemyShip(deltaSeconds: number, now: number): void {
+  if (!enemyShip.active) return;
+
+  // Beim ersten Aufruf: Wartezeit vor der ersten Bewegung festlegen
+  if (enemyShip.nextMoveAt < 0) {
+    enemyShip.nextMoveAt = now + randomBetween(ENEMY_STAY_MIN_MS, ENEMY_STAY_MAX_MS);
+  }
+
+  // Zeit für eine neue Zielposition?
+  if (now >= enemyShip.nextMoveAt) {
+    const direction = Math.random() < 0.5 ? -1 : 1;
+    const movePx = randomBetween(ENEMY_MOVE_MIN_PX, ENEMY_MOVE_MAX_PX);
+    const halfLength = enemyShip.length / 2;
+    enemyShip.targetY = clamp(
+      enemyShip.y + direction * movePx,
+      halfLength,
+      canvas.height - halfLength,
+    );
+    enemyShip.nextMoveAt = now + randomBetween(ENEMY_STAY_MIN_MS, ENEMY_STAY_MAX_MS);
+  }
+
+  // Vertikal auf Zielposition zubewegen
+  const dy = enemyShip.targetY - enemyShip.y;
+  if (Math.abs(dy) > 2) {
+    enemyShip.y += Math.sign(dy) * enemyShip.speedY * deltaSeconds;
+    const halfLength = enemyShip.length / 2;
+    enemyShip.y = clamp(enemyShip.y, halfLength, canvas.height - halfLength);
+  }
+
+  // Winkel dynamisch auf Spielerschiff ausrichten
+  enemyShip.angle = Math.atan2(ship.y - enemyShip.y, ship.x - enemyShip.x);
+
+  // Schussintervall prüfen
+  if (now - enemyShip.lastFiredAt >= ENEMY_FIRE_INTERVAL_MS) {
+    spawnEnemyProjectile(now);
+    enemyShip.lastFiredAt = now;
+  }
+}
+
 function updateBlink(now: number): void {
   if (blinkingStarIndex === -1 && now >= nextBlinkAt) {
 	blinkingStarIndex = Math.floor(Math.random() * stars.length);
@@ -365,6 +455,7 @@ function updateBlink(now: number): void {
 
 function updateProjectiles(deltaSeconds: number, now: number): void {
   const survivingProjectiles: Projectile[] = [];
+  const enemyCollisionRadius = Math.max(enemyShip.length, enemyShip.width) / 2;
 
   for (const projectile of projectiles) {
     // Kollision mit Asteroiden prüfen
@@ -377,6 +468,17 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
       const projectileEnergy = calculateProjectileEnergy(projectile, now);
       ship.energy = Math.max(0, ship.energy - projectileEnergy);
       continue; // Projektil wird zerstört
+    }
+
+    // Kollision mit Gegner-Schiff prüfen
+    if (enemyShip.active &&
+        isProjectileCollidingWithTarget(projectile.x, projectile.y, enemyShip.x, enemyShip.y, enemyCollisionRadius)) {
+      const projectileEnergy = calculateProjectileEnergy(projectile, now);
+      enemyShip.energy = Math.max(0, enemyShip.energy - projectileEnergy);
+      if (enemyShip.energy <= 0) {
+        enemyShip.active = false;
+      }
+      continue;
     }
 
     let accelerationX = 0;
@@ -417,12 +519,81 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
       continue; // Projektil wird zerstört
     }
 
+    // Nochmalige Kollision mit Gegner nach Bewegung
+    if (enemyShip.active &&
+        isProjectileCollidingWithTarget(projectile.x, projectile.y, enemyShip.x, enemyShip.y, enemyCollisionRadius)) {
+      const projectileEnergy = calculateProjectileEnergy(projectile, now);
+      enemyShip.energy = Math.max(0, enemyShip.energy - projectileEnergy);
+      if (enemyShip.energy <= 0) {
+        enemyShip.active = false;
+      }
+      continue;
+    }
+
     survivingProjectiles.push(projectile);
   }
 
   projectiles = survivingProjectiles.filter(
     (projectile) => now - projectile.createdAt <= PROJECTILE_MAX_LIFETIME_MS,
   );
+}
+
+function updateEnemyProjectiles(deltaSeconds: number, now: number): void {
+  const surviving: Projectile[] = [];
+  const shipCollisionRadius = Math.max(ship.length, ship.width) / 2;
+
+  for (const projectile of enemyProjectiles) {
+    if (circles.some((circle) => isProjectileCollidingWithAsteroid(projectile.x, projectile.y, circle))) {
+      continue;
+    }
+
+    if (now >= projectile.canHitShipAfter &&
+        isProjectileCollidingWithTarget(projectile.x, projectile.y, ship.x, ship.y, shipCollisionRadius)) {
+      const projectileEnergy = calculateProjectileEnergy(projectile, now);
+      ship.energy = Math.max(0, ship.energy - projectileEnergy);
+      continue;
+    }
+
+    let accelerationX = 0;
+    let accelerationY = 0;
+
+    for (const circle of circles) {
+      const dx = circle.x - projectile.x;
+      const dy = circle.y - projectile.y;
+      const distanceSquared = dx * dx + dy * dy;
+      const minDistance = Math.max(PROJECTILE_GRAVITY_MIN_DISTANCE, circle.radius * 0.35);
+      const clampedDistanceSquared = Math.max(distanceSquared, minDistance * minDistance);
+      const distance = Math.sqrt(clampedDistanceSquared);
+      const directionX = dx / distance;
+      const directionY = dy / distance;
+      const accelerationMagnitude = Math.min(
+        (PROJECTILE_GRAVITY_CONSTANT * circle.mass) / clampedDistanceSquared,
+        PROJECTILE_MAX_GRAVITY_ACCELERATION,
+      );
+      accelerationX += directionX * accelerationMagnitude;
+      accelerationY += directionY * accelerationMagnitude;
+    }
+
+    projectile.vx += accelerationX * deltaSeconds;
+    projectile.vy += accelerationY * deltaSeconds;
+    projectile.x += projectile.vx * deltaSeconds;
+    projectile.y += projectile.vy * deltaSeconds;
+
+    if (circles.some((circle) => isProjectileCollidingWithAsteroid(projectile.x, projectile.y, circle))) {
+      continue;
+    }
+
+    if (now >= projectile.canHitShipAfter &&
+        isProjectileCollidingWithTarget(projectile.x, projectile.y, ship.x, ship.y, shipCollisionRadius)) {
+      const projectileEnergy = calculateProjectileEnergy(projectile, now);
+      ship.energy = Math.max(0, ship.energy - projectileEnergy);
+      continue;
+    }
+
+    surviving.push(projectile);
+  }
+
+  enemyProjectiles = surviving.filter((p) => now - p.createdAt <= PROJECTILE_MAX_LIFETIME_MS);
 }
 
 function drawStars(now: number): void {
@@ -456,6 +627,22 @@ function drawCenterCircles(): void {
   }
 }
 
+function drawEnergyBar(shipX: number, shipY: number, energy: number, maxEnergy: number): void {
+  const barX = shipX - (ENERGY_BAR_WIDTH * zoomLevel) / 2;
+  const barY = shipY - (ENERGY_BAR_OFFSET_Y * zoomLevel);
+  const barWidth = ENERGY_BAR_WIDTH * zoomLevel;
+  const barHeight = ENERGY_BAR_HEIGHT * zoomLevel;
+
+  context.fillStyle = "#333333";
+  context.fillRect(barX, barY, barWidth, barHeight);
+
+  const energyPercent = energy / maxEnergy;
+  const energyWidth = barWidth * energyPercent;
+
+  context.fillStyle = energyPercent < 0.25 ? "#ff0000" : "#00ff00";
+  context.fillRect(barX, barY, energyWidth, barHeight);
+}
+
 function drawShip(): void {
   context.save();
   
@@ -478,26 +665,33 @@ function drawShip(): void {
   context.restore();
 
   // Energiebalken über dem Schiff zeichnen
-  drawEnergyBar(zoomedX, zoomedY);
+  drawEnergyBar(zoomedX, zoomedY, ship.energy, SHIP_MAX_ENERGY);
 }
 
-function drawEnergyBar(shipX: number, shipY: number): void {
-  const barX = shipX - (ENERGY_BAR_WIDTH * zoomLevel) / 2;
-  const barY = shipY - (ENERGY_BAR_OFFSET_Y * zoomLevel);
-  const barWidth = ENERGY_BAR_WIDTH * zoomLevel;
-  const barHeight = ENERGY_BAR_HEIGHT * zoomLevel;
+function drawEnemyShip(): void {
+  if (!enemyShip.active) return;
 
-  // Hintergrund des Energiebalkens (dunkelgrau)
-  context.fillStyle = "#333333";
-  context.fillRect(barX, barY, barWidth, barHeight);
+  context.save();
 
-  // Energiebalken (grün oder rot, proportional zur aktuellen Energie)
-  const energyPercent = ship.energy / SHIP_MAX_ENERGY;
-  const energyWidth = barWidth * energyPercent;
+  const zoomedX = enemyShip.x * zoomLevel + (canvas.width * (1 - zoomLevel)) / 2;
+  const zoomedY = enemyShip.y * zoomLevel + (canvas.height * (1 - zoomLevel)) / 2;
+  const zoomedLength = enemyShip.length * zoomLevel;
+  const zoomedWidth = enemyShip.width * zoomLevel;
 
-  // Rot wenn unter 25%, sonst grün
-  context.fillStyle = energyPercent < 0.25 ? "#ff0000" : "#00ff00";
-  context.fillRect(barX, barY, energyWidth, barHeight);
+  context.translate(zoomedX, zoomedY);
+  context.rotate(enemyShip.angle);
+
+  context.fillStyle = "#ff4444";
+  context.beginPath();
+  context.moveTo(zoomedLength / 2, 0);
+  context.lineTo(-zoomedLength / 2, -zoomedWidth / 2);
+  context.lineTo(-zoomedLength / 2, zoomedWidth / 2);
+  context.closePath();
+  context.fill();
+
+  context.restore();
+
+  drawEnergyBar(zoomedX, zoomedY, enemyShip.energy, ENEMY_MAX_ENERGY);
 }
 
 function drawProjectiles(): void {
@@ -514,6 +708,20 @@ function drawProjectiles(): void {
   }
 }
 
+function drawEnemyProjectiles(): void {
+  context.fillStyle = "#ff4444";
+
+  for (const projectile of enemyProjectiles) {
+    const zoomedX = projectile.x * zoomLevel + (canvas.width * (1 - zoomLevel)) / 2;
+    const zoomedY = projectile.y * zoomLevel + (canvas.height * (1 - zoomLevel)) / 2;
+    const zoomedRadius = PROJECTILE_RADIUS * zoomLevel;
+
+    context.beginPath();
+    context.arc(zoomedX, zoomedY, zoomedRadius, 0, Math.PI * 2);
+    context.fill();
+  }
+}
+
 function render(now: number): void {
   const deltaSeconds = lastFrameTime === 0 ? 0 : (now - lastFrameTime) / 1000;
   lastFrameTime = now;
@@ -523,15 +731,47 @@ function render(now: number): void {
 
   updateBlink(now);
   updateShip(deltaSeconds);
+  updateEnemyShip(deltaSeconds, now);
   updateProjectiles(deltaSeconds, now);
+  updateEnemyProjectiles(deltaSeconds, now);
   updateZoom(deltaSeconds);
   
   drawStars(now);
   drawCenterCircles();
   drawProjectiles();
+  drawEnemyProjectiles();
+  drawEnemyShip();
   drawShip();
 
   requestAnimationFrame(render);
+}
+
+function resizeCanvas(): void {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  stars = createStars(canvas.width, canvas.height);
+  circles = createCircles(canvas.width, canvas.height);
+  initializeOrClampShip(canvas.width, canvas.height);
+  initializeEnemyShip(canvas.width, canvas.height);
+}
+
+function setInputByKey(key: string, isPressed: boolean): void {
+  switch (key) {
+    case "ArrowLeft":
+      input.left = isPressed;
+      break;
+    case "ArrowRight":
+      input.right = isPressed;
+      break;
+    case "ArrowUp":
+      input.up = isPressed;
+      break;
+    case "ArrowDown":
+      input.down = isPressed;
+      break;
+    default:
+      break;
+  }
 }
 
 resizeCanvas();
