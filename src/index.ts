@@ -38,6 +38,9 @@ const ENEMY_PROJECTILE_HOMING_ACCELERATION = 160;
 const ENEMY_ENTRY_SPEED = 300;
 const ENEMY_RESPAWN_DELAY_MS = 2000;
 const SHIP_COLOR = "#2244ff";
+const SHIP_COLOR_RGB = "34, 68, 255";
+const ASTEROID_GRAY_MIN = 55;
+const ASTEROID_GRAY_MAX = 120;
 const PARTICLE_COUNT = 50;
 const PARTICLE_MIN_RANGE = 25;
 const PARTICLE_MAX_RANGE = 100;
@@ -74,6 +77,7 @@ type Circle = {
   y: number;
   radius: number;
   mass: number;
+  grayShade: number;
 };
 
 type ShipState = {
@@ -225,6 +229,7 @@ function createCircles(width: number, height: number): Circle[] {
         y: randomBetween(minY, maxY),
         radius: randomBetween(MIN_CIRCLE_RADIUS, MAX_CIRCLE_RADIUS),
         mass: 0,
+        grayShade: Math.floor(randomBetween(ASTEROID_GRAY_MIN, ASTEROID_GRAY_MAX)),
       };
 
       candidate.mass = calculateAsteroidMass(candidate.radius);
@@ -259,6 +264,7 @@ function createCircles(width: number, height: number): Circle[] {
           y: randomBetween(minY, maxY),
           radius: randomBetween(MIN_CIRCLE_RADIUS, MAX_CIRCLE_RADIUS),
           mass: 0,
+          grayShade: Math.floor(randomBetween(ASTEROID_GRAY_MIN, ASTEROID_GRAY_MAX)),
         };
 
       if (selected.mass === 0) {
@@ -649,7 +655,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
   for (const projectile of projectiles) {
     // Kollision mit Asteroiden prüfen
     if (circles.some((circle) => isProjectileCollidingWithAsteroid(projectile.x, projectile.y, circle))) {
-      spawnParticles(projectile.x, projectile.y, calculateProjectileEnergy(projectile, now), "255, 255, 255", now);
+      spawnParticles(projectile.x, projectile.y, calculateProjectileEnergy(projectile, now), SHIP_COLOR_RGB, now);
       continue;
     }
 
@@ -657,7 +663,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
     if (now >= projectile.canHitShipAfter && isProjectileCollidingWithShip(projectile.x, projectile.y)) {
       const projectileEnergy = calculateProjectileEnergy(projectile, now);
       ship.energy = Math.max(0, ship.energy - projectileEnergy);
-      spawnParticles(projectile.x, projectile.y, projectileEnergy, "255, 255, 255", now);
+      spawnParticles(projectile.x, projectile.y, projectileEnergy, SHIP_COLOR_RGB, now);
       triggerShake(now);
       continue; // Projektil wird zerstört
     }
@@ -667,7 +673,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
         isProjectileCollidingWithTarget(projectile.x, projectile.y, enemyShip.x, enemyShip.y, enemyCollisionRadius)) {
       const projectileEnergy = calculateProjectileEnergy(projectile, now);
       enemyShip.energy = Math.max(0, enemyShip.energy - projectileEnergy);
-      spawnParticles(projectile.x, projectile.y, projectileEnergy, "255, 255, 255", now);
+      spawnParticles(projectile.x, projectile.y, projectileEnergy, SHIP_COLOR_RGB, now);
       triggerShake(now);
       if (enemyShip.energy <= 0) {
         enemyShip.active = false;
@@ -704,7 +710,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
 
     // Nochmalige Kollisionsprüfung nach Bewegung
     if (circles.some((circle) => isProjectileCollidingWithAsteroid(projectile.x, projectile.y, circle))) {
-      spawnParticles(projectile.x, projectile.y, calculateProjectileEnergy(projectile, now), "255, 255, 255", now);
+      spawnParticles(projectile.x, projectile.y, calculateProjectileEnergy(projectile, now), SHIP_COLOR_RGB, now);
       continue;
     }
 
@@ -712,7 +718,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
     if (now >= projectile.canHitShipAfter && isProjectileCollidingWithShip(projectile.x, projectile.y)) {
       const projectileEnergy = calculateProjectileEnergy(projectile, now);
       ship.energy = Math.max(0, ship.energy - projectileEnergy);
-      spawnParticles(projectile.x, projectile.y, projectileEnergy, "255, 255, 255", now);
+      spawnParticles(projectile.x, projectile.y, projectileEnergy, SHIP_COLOR_RGB, now);
       triggerShake(now);
       continue; // Projektil wird zerstört
     }
@@ -722,7 +728,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
         isProjectileCollidingWithTarget(projectile.x, projectile.y, enemyShip.x, enemyShip.y, enemyCollisionRadius)) {
       const projectileEnergy = calculateProjectileEnergy(projectile, now);
       enemyShip.energy = Math.max(0, enemyShip.energy - projectileEnergy);
-      spawnParticles(projectile.x, projectile.y, projectileEnergy, "255, 255, 255", now);
+      spawnParticles(projectile.x, projectile.y, projectileEnergy, SHIP_COLOR_RGB, now);
       triggerShake(now);
       if (enemyShip.energy <= 0) {
         enemyShip.active = false;
@@ -848,9 +854,9 @@ function drawStars(now: number): void {
 }
 
 function drawCenterCircles(): void {
-  context.fillStyle = "#ffffff";
-
   for (const circle of circles) {
+    const g = circle.grayShade;
+    context.fillStyle = `rgb(${g}, ${g}, ${g})`;
     context.beginPath();
     context.arc(
       circle.x * zoomLevel + (canvas.width * (1 - zoomLevel)) / 2,
@@ -937,7 +943,7 @@ function drawProjectiles(now: number): void {
     const zoomedY = projectile.y * zoomLevel + (canvas.height * (1 - zoomLevel)) / 2;
     const zoomedRadius = PROJECTILE_RADIUS * zoomLevel;
 
-    context.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+    context.fillStyle = `rgba(${SHIP_COLOR_RGB}, ${alpha})`;
     context.beginPath();
     context.arc(zoomedX, zoomedY, zoomedRadius, 0, Math.PI * 2);
     context.fill();
