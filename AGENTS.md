@@ -46,6 +46,9 @@ Nach dem Build `index.html` im Browser öffnen.
   - `spawnEnemyProjectile(...)`, `updateEnemyProjectiles(...)`, `drawEnemyProjectiles(...)`
   - `respawnEnemyShip(now)` – setzt Gegner außerhalb links und startet Entry-Phase
   - `updateZoom(...)` – Zoom-Logik
+  - `getAudioContext()` – lazy AudioContext-Initialisierung
+  - `playShootSound(pitchHz)` – synthetisierter Schusssound
+  - `playExplosionSound(energy)` – White-Noise-Explosionssound
   - `render(...)`
 - Input:
   - `ArrowLeft` / `ArrowRight` drehen das Spielerschiff
@@ -76,6 +79,14 @@ Nach dem Build `index.html` im Browser öffnen.
 - Nach Codeänderungen TypeScript-Build ausführen und auf Fehler prüfen.
 - Keine unnötigen neuen Abhängigkeiten einführen.
 - Ausgabe bleibt browserbasiert über `index.html` + `dist/index.js`.
+
+## Sound-System
+- Audio wird ausschließlich per Web Audio API synthetisiert – keine externen Audiodateien.
+- `getAudioContext()` erzeugt den `AudioContext` lazy (erst nach erster Nutzerinteraktion); kein Autoplay-Problem.
+- `playShootSound(pitchHz)`: kurzer Sinuston mit exponentiell fallender Frequenz. Spieler → 880 Hz, Gegner → 420 Hz.
+- `playExplosionSound(energy)`: White-Noise-Burst durch einen Tiefpassfilter; Lautstärke und Grenzfrequenz skalieren mit `energy` (0–100).
+- Beide Funktionen sind in `try/catch` gekapselt – Audio-Fehler werden still ignoriert.
+- Aufrufstellen: `spawnProjectile` (Spieler), `spawnEnemyProjectile` (Gegner), `spawnParticles` (Explosion).
 
 ## Bekannte Besonderheiten
 - `dist/` ist Build-Artefakt aus `tsc`.

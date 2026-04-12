@@ -186,6 +186,23 @@ function randomBetween(min: number, max: number): number {
 
 // ── Audio ────────────────────────────────────────────────────────────────────
 let audioContext: AudioContext | null = null;
+let musicAudio: HTMLAudioElement | null = null;
+
+function startMusic(): void {
+  try {
+    if (!musicAudio) {
+      musicAudio = new Audio("dist/cosmic-coin-chase.mp3");
+      musicAudio.loop = true;
+      musicAudio.volume = 0.5;
+    }
+    musicAudio.currentTime = 0;
+    musicAudio.play().catch(() => {
+      // Autoplay-Sperre – wird stillschweigend ignoriert
+    });
+  } catch (_) {
+    // Audio nicht verfügbar – ignorieren
+  }
+}
 
 function getAudioContext(): AudioContext {
   if (!audioContext) {
@@ -1155,6 +1172,7 @@ window.addEventListener("keydown", (event) => {
       score = 0;
       projectiles = [];
       enemyProjectiles = [];
+      startMusic();
     } else {
       spawnProjectile(performance.now());
     }

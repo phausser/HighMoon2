@@ -18,7 +18,7 @@ Dieses Dokument definiert, wie Copilot in `HighMoon2` arbeiten soll.
 
 ## Aenderungen an der Szene
 - Passe zuerst Konstanten an, bevor Logik umgebaut wird.
-- Relevante Konstanten-Gruppen: `STAR_*`, `MIN_CIRCLE_*`, `MAX_CIRCLE_*`, `SHIP_*`, `PROJECTILE_*`, `ZOOM_*`, `ENEMY_*`.
+- Relevante Konstanten-Gruppen: `STAR_*`, `MIN_CIRCLE_*`, `MAX_CIRCLE_*`, `SHIP_*`, `PROJECTILE_*`, `ZOOM_*`, `ENEMY_*`, `PARTICLE_*`.
 - Halte Render-Reihenfolge stabil, ausser es ist explizit angefragt.
 - Beachte, dass die Szene browserbasiert bleibt (kein Framework/Bundler einfuehren).
 - Standardverhalten beibehalten, sofern nicht anders gefordert: Schiff startet mittig und schaut nach links.
@@ -56,6 +56,15 @@ Dieses Dokument definiert, wie Copilot in `HighMoon2` arbeiten soll.
 ## Abhaengigkeiten
 - Keine unnoetigen neuen Pakete installieren.
 - Vorhandenes Setup mit `tsc` beibehalten.
+- Web Audio API ist bereits genutzt (kein externes Audio-Paket einfuehren).
+
+## Sound-System
+- Audio wird per Web Audio API synthetisiert; keine externen Audio-Dateien.
+- `getAudioContext()` initialisiert den `AudioContext` lazy (erst bei erster Nutzerinteraktion).
+- `playShootSound(pitchHz)` erzeugt einen kurzen Sinuston mit Frequenzabfall (Spieler: 880 Hz, Gegner: 420 Hz).
+- `playExplosionSound(energy)` erzeugt einen White-Noise-Burst mit Tiefpassfilter; Lautstaerke und Grenzfrequenz skalieren mit `energy` (0–100).
+- Neue Soundeffekte immer in try/catch kapseln – Audio-Fehler stillschweigend ignorieren.
+- Kein Autoplay-Problem: `AudioContext` wird nur nach Nutzerinteraktion erstellt/resumed.
 
 ## Dateigrenzen
 - Hauptlogik bleibt in `src/index.ts`, solange keine Aufteilung angefordert ist.
