@@ -37,6 +37,10 @@ const ENEMY_PROJECTILE_HOMING_ACCELERATION = 160;
 const ENEMY_ENTRY_SPEED = 300;
 const ENEMY_RESPAWN_DELAY_MS = 2000;
 const SHIP_COLOR = "#2244ff";
+const PARTICLE_COUNT = 50;
+const PARTICLE_MIN_RANGE = 25;
+const PARTICLE_MAX_RANGE = 100;
+const PARTICLE_LIFETIME_MS = 700;
 
 const canvas = document.createElement("canvas");
 const contextMaybe = canvas.getContext("2d");
@@ -90,6 +94,15 @@ type Projectile = {
   canHitShipAfter: number;
 };
 
+type Particle = {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  createdAt: number;
+  colorRGB: string;
+};
+
 type EnemyShipState = {
   x: number;
   y: number;
@@ -110,6 +123,7 @@ let stars: Star[] = [];
 let circles: Circle[] = [];
 let projectiles: Projectile[] = [];
 let enemyProjectiles: Projectile[] = [];
+let particles: Particle[] = [];
 let ship: ShipState = {
   x: 0,
   y: 0,
@@ -333,6 +347,25 @@ function calculateProjectileEnergy(projectile: Projectile, now: number): number 
   return energyPercent * 100;
 }
 
+function spawnParticles(x: number, y: number, energy: number, colorRGB: string, now: number): void {
+  const energyPercent = energy / 100;
+  const range = PARTICLE_MIN_RANGE + energyPercent * (PARTICLE_MAX_RANGE - PARTICLE_MIN_RANGE);
+  const baseSpeed = range / (PARTICLE_LIFETIME_MS / 1000);
+
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = baseSpeed * (0.4 + Math.random() * 0.6);
+    particles.push({
+      x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      createdAt: now,
+      colorRGB,
+    });
+  }
+}
+
 function initializeOrClampShip(width: number, height: number): void {
   if (ship.x === 0 && ship.y === 0) {
     ship.x = width - SHIP_MARGIN_RIGHT;
@@ -497,6 +530,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
   for (const projectile of projectiles) {
     // Kollision mit Asteroiden prüfen
     if (circles.some((circle) => isProjectileCollidingWithAsteroid(projectile.x, projectile.y, circle))) {
+      spawnParticles(projectile.x, projectile.y, calculateProjectileEnergy(projectile, now), "255, 255, 255", now);
       continue;
     }
 
@@ -504,6 +538,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
     if (now >= projectile.canHitShipAfter && isProjectileCollidingWithShip(projectile.x, projectile.y)) {
       const projectileEnergy = calculateProjectileEnergy(projectile, now);
       ship.energy = Math.max(0, ship.energy - projectileEnergy);
+      spawnParticles(projectile.x, projectile.y, projectileEnergy, "255, 255, 255", now);
       continue; // Projektil wird zerstört
     }
 
@@ -512,6 +547,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
         isProjectileCollidingWithTarget(projectile.x, projectile.y, enemyShip.x, enemyShip.y, enemyCollisionRadius)) {
       const projectileEnergy = calculateProjectileEnergy(projectile, now);
       enemyShip.energy = Math.max(0, enemyShip.energy - projectileEnergy);
+      spawnParticles(projectile.x, projectile.y, projectileEnergy, "255, 255, 255", now);
       if (enemyShip.energy <= 0) {
         enemyShip.active = false;
         enemyShip.respawnAt = now + ENEMY_RESPAWN_DELAY_MS;
@@ -547,6 +583,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
 
     // Nochmalige Kollisionsprüfung nach Bewegung
     if (circles.some((circle) => isProjectileCollidingWithAsteroid(projectile.x, projectile.y, circle))) {
+      spawnParticles(projectile.x, projectile.y, calculateProjectileEnergy(projectile, now), "255, 255, 255", now);
       continue;
     }
 
@@ -554,6 +591,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
     if (now >= projectile.canHitShipAfter && isProjectileCollidingWithShip(projectile.x, projectile.y)) {
       const projectileEnergy = calculateProjectileEnergy(projectile, now);
       ship.energy = Math.max(0, ship.energy - projectileEnergy);
+      spawnParticles(projectile.x, projectile.y, projectileEnergy, "255, 255, 255", now);
       continue; // Projektil wird zerstört
     }
 
@@ -562,6 +600,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
         isProjectileCollidingWithTarget(projectile.x, projectile.y, enemyShip.x, enemyShip.y, enemyCollisionRadius)) {
       const projectileEnergy = calculateProjectileEnergy(projectile, now);
       enemyShip.energy = Math.max(0, enemyShip.energy - projectileEnergy);
+      spawnParticles(projectile.x, projectile.y, projectileEnergy, "255, 255, 255", now);
       if (enemyShip.energy <= 0) {
         enemyShip.active = false;
         enemyShip.respawnAt = now + ENEMY_RESPAWN_DELAY_MS;
@@ -583,6 +622,7 @@ function updateEnemyProjectiles(deltaSeconds: number, now: number): void {
 
   for (const projectile of enemyProjectiles) {
     if (circles.some((circle) => isProjectileCollidingWithAsteroid(projectile.x, projectile.y, circle))) {
+      spawnParticles(projectile.x, projectile.y, calculateProjectileEnergy(projectile, now), "255, 68, 68", now);
       continue;
     }
 
@@ -590,6 +630,7 @@ function updateEnemyProjectiles(deltaSeconds: number, now: number): void {
         isProjectileCollidingWithTarget(projectile.x, projectile.y, ship.x, ship.y, shipCollisionRadius)) {
       const projectileEnergy = calculateProjectileEnergy(projectile, now);
       ship.energy = Math.max(0, ship.energy - projectileEnergy);
+      spawnParticles(projectile.x, projectile.y, projectileEnergy, "255, 68, 68", now);
       continue;
     }
 
@@ -628,6 +669,7 @@ function updateEnemyProjectiles(deltaSeconds: number, now: number): void {
     projectile.y += projectile.vy * deltaSeconds;
 
     if (circles.some((circle) => isProjectileCollidingWithAsteroid(projectile.x, projectile.y, circle))) {
+      spawnParticles(projectile.x, projectile.y, calculateProjectileEnergy(projectile, now), "255, 68, 68", now);
       continue;
     }
 
@@ -635,6 +677,7 @@ function updateEnemyProjectiles(deltaSeconds: number, now: number): void {
         isProjectileCollidingWithTarget(projectile.x, projectile.y, ship.x, ship.y, shipCollisionRadius)) {
       const projectileEnergy = calculateProjectileEnergy(projectile, now);
       ship.energy = Math.max(0, ship.energy - projectileEnergy);
+      spawnParticles(projectile.x, projectile.y, projectileEnergy, "255, 68, 68", now);
       continue;
     }
 
@@ -642,6 +685,26 @@ function updateEnemyProjectiles(deltaSeconds: number, now: number): void {
   }
 
   enemyProjectiles = surviving.filter((p) => now - p.createdAt <= PROJECTILE_MAX_LIFETIME_MS);
+}
+
+function updateParticles(deltaSeconds: number, now: number): void {
+  for (const p of particles) {
+    p.x += p.vx * deltaSeconds;
+    p.y += p.vy * deltaSeconds;
+  }
+  particles = particles.filter((p) => now - p.createdAt <= PARTICLE_LIFETIME_MS);
+}
+
+function drawParticles(now: number): void {
+  for (const p of particles) {
+    const age = now - p.createdAt;
+    const alpha = Math.max(0, 1 - age / PARTICLE_LIFETIME_MS);
+    const zoomedX = p.x * zoomLevel + (canvas.width * (1 - zoomLevel)) / 2;
+    const zoomedY = p.y * zoomLevel + (canvas.height * (1 - zoomLevel)) / 2;
+
+    context.fillStyle = `rgba(${p.colorRGB}, ${alpha})`;
+    context.fillRect(zoomedX - 0.5, zoomedY - 0.5, 1.5, 1.5);
+  }
 }
 
 function drawStars(now: number): void {
@@ -782,10 +845,12 @@ function render(now: number): void {
   updateEnemyShip(deltaSeconds, now);
   updateProjectiles(deltaSeconds, now);
   updateEnemyProjectiles(deltaSeconds, now);
+  updateParticles(deltaSeconds, now);
   updateZoom(deltaSeconds);
   
   drawStars(now);
   drawCenterCircles();
+  drawParticles(now);
   drawProjectiles(now);
   drawEnemyProjectiles(now);
   drawEnemyShip();
