@@ -179,6 +179,7 @@ let playerStillCheckX = 0;
 let playerStillCheckY = 0;
 let gameActive = false;
 let score = 0;
+let enemyShotCount = 0; // Schüsse des Spielers seit dem letzten Gegner-Spawn
 
 function randomBetween(min: number, max: number): number {
   return min + Math.random() * (max - min);
@@ -502,6 +503,7 @@ function spawnProjectile(now: number): void {
     canHitShipAfter: now + PROJECTILE_SHIP_COLLISION_GRACE_MS,
   });
 
+  enemyShotCount++; // Schusszähler erhöhen
   playShootSound(880);
 }
 
@@ -527,6 +529,7 @@ function respawnEnemyShip(now: number): void {
   enemyShip.nextMoveAt = -1;
   enemyShip.targetY = enemyShip.y;
   enemyShip.respawnAt = -1;
+  enemyShotCount = 0; // Schusszähler zurücksetzen
 }
 
 function simulateEnemyProjectileHitsPlayer(startX: number, startY: number, angle: number): boolean {
@@ -770,7 +773,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
       if (enemyShip.energy <= 0) {
         enemyShip.active = false;
         enemyShip.respawnAt = now + ENEMY_RESPAWN_DELAY_MS;
-        score += 10;
+        score += Math.max(1, 101 - enemyShotCount);
       }
       continue;
     }
@@ -826,7 +829,7 @@ function updateProjectiles(deltaSeconds: number, now: number): void {
       if (enemyShip.energy <= 0) {
         enemyShip.active = false;
         enemyShip.respawnAt = now + ENEMY_RESPAWN_DELAY_MS;
-        score += 10;
+        score += Math.max(1, 101 - enemyShotCount);
       }
       continue;
     }
@@ -1170,6 +1173,7 @@ window.addEventListener("keydown", (event) => {
       gameActive = true;
       ship.energy = SHIP_MAX_ENERGY;
       score = 0;
+      enemyShotCount = 0;
       projectiles = [];
       enemyProjectiles = [];
       startMusic();
