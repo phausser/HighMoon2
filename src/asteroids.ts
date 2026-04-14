@@ -51,13 +51,34 @@ export function createCircles(width: number, height: number): Circle[] {
 export function drawCenterCircles(): void {
   for (const circle of state.circles) {
     const g = circle.grayShade;
+    const zx =
+      circle.x * state.zoomLevel +
+      (canvas.width * (1 - state.zoomLevel)) / 2;
+    const zy =
+      circle.y * state.zoomLevel +
+      (canvas.height * (1 - state.zoomLevel)) / 2;
+    const zr = circle.radius * state.zoomLevel;
+
+    // Grundkörper
     context.fillStyle = `rgb(${g}, ${g}, ${g})`;
     context.beginPath();
+    context.arc(zx, zy, zr, 0, Math.PI * 2);
+    context.fill();
+
+    // per clip() auf den Asteroiden-Bereich begrenzt → Sichelform
+    context.save();
+    context.beginPath();
+    context.arc(zx, zy, zr, 0, Math.PI * 2);
+    context.clip();
+    context.fillStyle = 'rgba(255, 255, 255, 0.10)';
+    context.beginPath();
     context.arc(
-      circle.x * state.zoomLevel + (canvas.width * (1 - state.zoomLevel)) / 2,
-      circle.y * state.zoomLevel + (canvas.height * (1 - state.zoomLevel)) / 2,
-      circle.radius * state.zoomLevel, 0, Math.PI * 2,
+      zx - zr * 0.15,
+      zy - zr * 0.15,
+      zr * 0.90,
+      0, Math.PI * 2,
     );
     context.fill();
+    context.restore();
   }
 }

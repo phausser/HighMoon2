@@ -23,11 +23,11 @@ export function createStars(width: number, height: number): Star[] {
 export function updateBlink(now: number): void {
   if (state.blinkingStarIndex === -1 && now >= state.nextBlinkAt) {
     state.blinkingStarIndex = Math.floor(Math.random() * state.stars.length);
-    state.blinkUntil = now + randomBetween(1300, 3200);
+    state.blinkUntil = now + randomBetween(100, 200);
   }
   if (state.blinkingStarIndex !== -1 && now >= state.blinkUntil) {
     state.blinkingStarIndex = -1;
-    state.nextBlinkAt = now + randomBetween(600, 800);
+    state.nextBlinkAt = now + randomBetween(200, 400);
   }
 }
 
@@ -36,7 +36,7 @@ export function drawStars(now: number): void {
     const star = state.stars[index]!;
     let alpha = star.alpha;
     if (index === state.blinkingStarIndex) {
-      alpha = 0.1 + Math.abs(Math.sin(now * 0.045)) * 0.9;
+      alpha = 0.1 + Math.abs(Math.sin(now * 0.045)) * 0.2;
     }
     context.fillStyle = `rgba(${STAR_COLOR}, ${alpha})`;
     context.fillRect(star.x, star.y, star.size, star.size);

@@ -5,6 +5,7 @@ import {
   ENEMY_PROJECTILE_HOMING_ACCELERATION, ENEMY_STILL_THRESHOLD_MS,
   ENEMY_STILL_AIM_SPREAD_RAD, ENEMY_STILL_SIM_STEP,
   ENEMY_STILL_SIM_ANGLE_OFFSETS, ENEMY_STILL_SIM_Y_OFFSETS,
+  ENEMY_COLOR_RGB,
   PROJECTILE_SPEED, PROJECTILE_RADIUS, PROJECTILE_MAX_LIFETIME_MS,
   PROJECTILE_SHIP_COLLISION_GRACE_MS, PROJECTILE_GRAVITY_CONSTANT,
   PROJECTILE_GRAVITY_MIN_DISTANCE, PROJECTILE_MAX_GRAVITY_ACCELERATION,
@@ -203,7 +204,7 @@ export function drawEnemyShip(): void {
   context.closePath();
   context.fill();
   context.restore();
-  drawEnergyBar(zx, zy, state.enemyShip.energy, ENEMY_MAX_ENERGY);
+  drawEnergyBar(zx, zy, state.enemyShip.energy, ENEMY_MAX_ENERGY, ENEMY_COLOR_RGB);
 }
 
 export function updateEnemyProjectiles(deltaSeconds: number, now: number): void {

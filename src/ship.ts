@@ -43,7 +43,13 @@ export function spawnProjectile(now: number): void {
   playShootSound(880);
 }
 
-export function drawEnergyBar(shipX: number, shipY: number, energy: number, maxEnergy: number): void {
+export function drawEnergyBar(
+  shipX: number,
+  shipY: number,
+  energy: number,
+  maxEnergy: number,
+  colorRGB: string,
+): void {
   const bx = shipX - (ENERGY_BAR_WIDTH * state.zoomLevel) / 2;
   const by = shipY - (ENERGY_BAR_OFFSET_Y * state.zoomLevel);
   const bw = ENERGY_BAR_WIDTH * state.zoomLevel;
@@ -51,7 +57,7 @@ export function drawEnergyBar(shipX: number, shipY: number, energy: number, maxE
   context.fillStyle = '#333333';
   context.fillRect(bx, by, bw, bh);
   const pct = energy / maxEnergy;
-  context.fillStyle = pct < 0.25 ? '#ff0000' : '#00ff00';
+  context.fillStyle = `rgb(${colorRGB})`;
   context.fillRect(bx, by, bw * pct, bh);
 }
 
@@ -61,7 +67,7 @@ export function drawShip(): void {
   const zl = state.ship.length * state.zoomLevel;
   const zw = state.ship.width * state.zoomLevel;
   if (!state.gameActive && Math.floor(performance.now() / 300) % 2 === 0) {
-    drawEnergyBar(zx, zy, state.ship.energy, SHIP_MAX_ENERGY);
+    drawEnergyBar(zx, zy, state.ship.energy, SHIP_MAX_ENERGY, SHIP_COLOR_RGB);
     return;
   }
   context.save();
@@ -75,7 +81,7 @@ export function drawShip(): void {
   context.closePath();
   context.fill();
   context.restore();
-  drawEnergyBar(zx, zy, state.ship.energy, SHIP_MAX_ENERGY);
+  drawEnergyBar(zx, zy, state.ship.energy, SHIP_MAX_ENERGY, SHIP_COLOR_RGB);
 }
 
 export function updateShip(deltaSeconds: number, now: number): void {
