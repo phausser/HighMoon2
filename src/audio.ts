@@ -3,7 +3,7 @@ let musicAudio: HTMLAudioElement | null = null;
 export function startMusic(): void {
   try {
     if (!musicAudio) {
-      musicAudio = new Audio("dist/cosmic-coin-chase.mp3");
+      musicAudio = new Audio('dist/cosmic-coin-chase.mp3');
       musicAudio.loop = true;
       musicAudio.volume = 0.5;
     }
@@ -19,7 +19,7 @@ export function getAudioContext(): AudioContext {
   if (!audioContext) {
     audioContext = new AudioContext();
   }
-  if (audioContext.state === "suspended") {
+  if (audioContext.state === 'suspended') {
     audioContext.resume();
   }
   return audioContext;
@@ -31,7 +31,7 @@ export function playShootSound(pitchHz: number = 880): void {
     const gain = ctx.createGain();
     osc.connect(gain);
     gain.connect(ctx.destination);
-    osc.type = "sine";
+    osc.type = 'sine';
     osc.frequency.setValueAtTime(pitchHz, ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(pitchHz * 0.2, ctx.currentTime + 0.13);
     gain.gain.setValueAtTime(0.22, ctx.currentTime);
@@ -55,7 +55,7 @@ export function playExplosionSound(energy: number): void {
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     const filter = ctx.createBiquadFilter();
-    filter.type = "lowpass";
+    filter.type = 'lowpass';
     const baseFreq = 180 + (energy / 100) * 820;
     filter.frequency.setValueAtTime(baseFreq, ctx.currentTime);
     filter.frequency.exponentialRampToValueAtTime(55, ctx.currentTime + duration);
