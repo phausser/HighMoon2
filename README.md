@@ -1,58 +1,91 @@
 # HighMoon2
 
-A minimal TypeScript browser game rendered with Canvas 2D – two ships fight each other in a gravity-filled asteroid field.
+Ein minimales TypeScript-Browserspiel gerendert mit Canvas 2D – zwei Schiffe kämpfen gegeneinander in einem gravitations-beeinflussten Asteroidenfeld.
 
 ## Features
-- Spaceship navigation in 2D space
-- Projectile shooting with gravitational physics (asteroids bend trajectories)
-- **Enemy ship** (red) that aims at the player, fires homing projectiles and automatically respawns from the left after being destroyed
-- Energy bars for both ships; projectile damage decreases with projectile age
-- Automatic zoom system: camera smoothly zooms out (up to 50 %) to keep player projectiles visible; beyond that limit projectiles may leave the screen
-- Dynamic background stars with blink effect (unaffected by zoom)
-- Asteroids with collision detection
-- **Sound effects** via Web Audio API: synthesised shoot sound (player = high pitch, enemy = low pitch) and explosion sound scaled by impact energy; no external audio assets required
+- Raumschiff-Navigation im 2D-Raum
+- Projektile mit Gravitations-Physik (Asteroiden lenken Flugbahnen ab)
+- **Gegner-Schiff** (rot): zielt auf den Spieler, feuert lenkende Projektile, spawnt automatisch von links neu nach dem Tod
+- **Intelligentes Zielen**: Steht der Spieler still, simuliert der Gegner Projektilbahnen und sucht den besten Abschusswinkel
+- Energieleisten für beide Schiffe; Projektilschaden nimmt mit dem Alter ab
+- **Score-System**: Punkte pro Abschuss – mehr Punkte je weniger Schüsse der Spieler brauchte
+- **Spielstart / Game-Over**-Schleife: „PRESS SPACE TO START" → Kampf → „GAME OVER – PRESS SPACE"
+- Automatisches Zoom-System: Kamera zoomt sanft heraus (max. 50 %), um Spieler-Projektile sichtbar zu halten; jenseits des Limits dürfen Projektile den Bildschirm verlassen
+- Dynamische Hintergrundsterne mit Blinkeffekt (vom Zoom unberührt)
+- Asteroiden mit Kollisionserkennung
+- **Hintergrundmusik** (`cosmic-coin-chase.mp3`) startet beim ersten Spielstart
+- **Soundeffekte** via Web Audio API: synthetisierter Schusssound (Spieler = hohe Frequenz, Gegner = niedrige Frequenz) und Explosionssound skaliert nach Aufprallenergie; keine externen Audio-Assets nötig
 
 ## Stack
-- TypeScript
+- TypeScript 6
 - Browser Canvas 2D + Web Audio API
-- `tsc` build output to `dist/index.js`
+- `tsc` + `cp assets/* dist/` (Build-Skript via `npm run build`)
+- Modularer Quellcode in `src/` → Ausgabe nach `dist/`
 
-## Run
+## Projektstruktur
+```
+src/
+  index.ts        – Einstiegspunkt (initialisiert Canvas, Input, Render-Loop)
+  state.ts        – Canvas-Erstellung, globales State-Objekt
+  types.ts        – TypeScript-Typen (Star, Circle, ShipState, …)
+  constants.ts    – Alle Spielkonstanten (STAR_*, SHIP_*, ENEMY_*, ZOOM_*, …)
+  utils.ts        – randomBetween(), clamp()
+  stars.ts        – Sterne: erstellen, blinken, zeichnen
+  asteroids.ts    – Asteroiden: erstellen, zeichnen, Masse berechnen
+  physics.ts      – Kollision, Projektilenergie, Zoom-Update
+  particles.ts    – Partikel & Bildschirmwackeln
+  ship.ts         – Spielerschiff: Update, Zeichnen, Projektile
+  enemy.ts        – Gegnerschiff: Update, Zeichnen, Projektile, Respawn, KI
+  audio.ts        – Web Audio API: Schusssound, Explosionssound, Musik
+  input.ts        – Tastatur-Input, Spielstart/-neustart
+  render.ts       – Render-Loop, Szenenaufbau, Score-Overlay, Prompt
+assets/
+  styles.css      – Stylesheet (wird nach dist/ kopiert)
+  cosmic-coin-chase.mp3 – Hintergrundmusik (wird nach dist/ kopiert)
+```
+
+## Build und Starten
 ```bash
 npm run build
 ```
-Then open `index.html` in your browser.
+Danach `index.html` im Browser öffnen.
 
-## Controls
-- `ArrowLeft` / `ArrowRight`: rotate ship
-- `ArrowUp` / `ArrowDown`: move ship vertically
-- `Space`: shoot projectile in facing direction
+## Steuerung
+- `ArrowLeft` / `ArrowRight`: Schiff drehen
+- `ArrowUp` / `ArrowDown`: Schiff vertikal bewegen
+- `Space`: Projektil in Blickrichtung abfeuern (erstes Drücken startet das Spiel)
 
-## Zoom System
-The camera tracks **player projectiles only** – enemy projectiles never influence the zoom level.
+## Score-System
+- Pro Abschuss: `max(1, 101 − Anzahl_eigener_Schüsse_seit_letztem_Kill)`
+- Weniger Schüsse = mehr Punkte; Score wird 5-stellig oben mittig angezeigt
 
-- The camera zooms out smoothly when player projectiles approach the screen edge (20 px margin).
-- The maximum zoom-out is **50 %** (`MIN_ZOOM = 0.5`). Beyond that limit, projectiles may leave the visible area.
-- When all player projectiles have expired or been destroyed, the camera smoothly zooms back to 1.0×.
-- Zoom transitions are always gradual – no abrupt jumps in either direction.
-- The star background is unaffected by zoom; only foreground objects (ship, projectiles, asteroids) are scaled.
+## Zoom-System
+Die Kamera verfolgt **ausschließlich Spieler-Projektile** – Gegner-Projektile beeinflussen den Zoom nie.
 
-## Enemy Behaviour
-- Starts on the left side of the screen (`ENEMY_MARGIN_LEFT`).
-- Moves vertically at random intervals and always aims at the player.
-- Fires a homing projectile every `ENEMY_FIRE_INTERVAL_MS` ms.
-- When destroyed, a new enemy flies in from off-screen left after `ENEMY_RESPAWN_DELAY_MS` ms.
+- Zoomt sanft heraus, wenn Spieler-Projektile den Bildschirmrand nähern (20 px Margin).
+- Maximale Verkleinerung: **50 %** (`MIN_ZOOM = 0.5`). Jenseits dürfen Projektile den sichtbaren Bereich verlassen.
+- Zoomt automatisch zurück auf 1,0×, wenn keine Spieler-Projektile mehr vorhanden sind.
+- Übergänge sind immer gleichmäßig – kein Ruckeln in beide Richtungen.
+- Sternenhintergrund bleibt unberührt; nur Vordergrundobjekte (Schiff, Projektile, Asteroiden) werden skaliert.
 
-## Sound Effects
-Sound is synthesised at runtime using the Web Audio API – no audio files are bundled.
+## Gegner-Verhalten
+- Startet links auf Höhe `ENEMY_MARGIN_LEFT`.
+- Bewegt sich vertikal in zufälligen Intervallen; Winkel zeigt immer auf den Spieler.
+- Feuert alle `ENEMY_FIRE_INTERVAL_MS` ms ein lenkendes Projektil.
+- **Intelligentes Zielen**: Steht der Spieler länger als `ENEMY_STILL_THRESHOLD_MS` still, simuliert der Gegner Projektilbahnen und wählt den treffsichersten Winkel.
+- Nach dem Tod fliegt nach `ENEMY_RESPAWN_DELAY_MS` ms ein neuer Gegner von links außerhalb des Bildschirms ins Spielfeld (`entering`-Phase); kein Schuss während des Einfliegens.
 
-| Event | Sound |
+## Soundeffekte
+Sound wird zur Laufzeit per Web Audio API synthetisiert – keine Audio-Dateien werden gebündelt.
+
+| Ereignis | Sound |
 |---|---|
-| Player fires | Short descending sine tone (880 → 176 Hz, ~130 ms) |
-| Enemy fires | Same shape, lower pitch (420 → 84 Hz) |
-| Any explosion | White-noise burst through a falling low-pass filter; volume and frequency range scale with impact energy |
+| Spieler schießt | Kurzer abfallender Sinuston (880 → 176 Hz, ~130 ms) |
+| Gegner schießt | Gleiche Form, tiefere Frequenz (420 → 84 Hz) |
+| Explosion | White-Noise-Burst durch einen abfallenden Tiefpassfilter; Lautstärke und Frequenzbereich skalieren mit Aufprallenergie |
+| Spielstart | Hintergrundmusik startet (`cosmic-coin-chase.mp3`) |
 
-The `AudioContext` is created lazily on the first user interaction, so browser autoplay policies are respected automatically.
+Der `AudioContext` wird lazy erst nach der ersten Nutzerinteraktion erstellt – Browser-Autoplay-Richtlinien werden automatisch eingehalten.
 
-## License
-MIT (see `LICENSE`).
+## Lizenz
+MIT (siehe `LICENSE`).

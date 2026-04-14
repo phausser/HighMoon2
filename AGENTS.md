@@ -4,90 +4,130 @@
 Dieses Dokument gibt Agenten einen schnellen, verlässlichen Überblick über das Projekt `HighMoon2` und die erwartete Arbeitsweise bei Änderungen.
 
 ## Projektstatus (Ist-Zustand)
-- Sprache: TypeScript
-- Laufzeit: Browser (Canvas 2D)
-- Build: `tsc` (kein Bundler, kein Framework)
-- Einstiegscode: `src/index.ts`
-- Kompilat: `dist/index.js`
-- HTML-Einstieg: `index.html` lädt `dist/index.js`
-- Spielerschiff startet rechts, schaut nach links.
+- Sprache: TypeScript 6
+- Laufzeit: Browser (Canvas 2D + Web Audio API)
+- Build: `tsc && cp assets/* dist/` (kein Bundler, kein Framework)
+- Einstiegscode: `src/index.ts` (minimal – ruft nur Initialisierungsfunktionen auf)
+- Kompilat: `dist/` (JS-Module + kopierte Assets)
+- HTML-Einstieg: `index.html` lädt `dist/index.js` als ES-Modul
+- Spielerschiff startet rechts mittig, schaut nach links (`angle = Math.PI`).
 - Gegnerschiff startet links, schaut auf den Spieler.
 
 ## Relevante Dateien
-- `package.json`: Build-Skript und Abhängigkeiten
-- `tsconfig.json`: TypeScript-Compiler-Konfiguration (`outDir: dist`, `module: es2015`)
-- `index.html`: Vollbild-Seite mit Canvas-Hintergrund und Script-Tag auf `dist/index.js`
-- `src/index.ts`: Komplette Szenenlogik (Sterne, Kreise, Raumschiff, Gegner, Input, Render-Loop)
+- `package.json`: Build-Skript (`tsc && cp assets/* dist/`) und Abhängigkeiten (nur `typescript`)
+- `tsconfig.json`: `rootDir: src`, `outDir: dist`, `module: es2015`, `moduleResolution: bundler`, `strict: true`
+- `index.html`: Vollbild-Canvas-Seite; lädt `dist/styles.css` und `dist/index.js`
+- `assets/styles.css`: Quell-Stylesheet (wird beim Build nach `dist/` kopiert)
+- `assets/cosmic-coin-chase.mp3`: Hintergrundmusik (wird beim Build nach `dist/` kopiert)
+
+## Modulstruktur (`src/`)
+| Modul | Exportierte Funktionen / Inhalte |
+|---|---|
+| `types.ts` | `Star`, `Circle`, `ShipState`, `InputState`, `Projectile`, `Particle`, `EnemyShipState` |
+| `constants.ts` | Alle Spielkonstanten (`STAR_*`, `SHIP_*`, `PROJECTILE_*`, `ZOOM_*`, `ENEMY_*`, `PARTICLE_*`, …) |
+| `state.ts` | `canvas`, `context`, `state` (globales Spielzustand-Objekt) |
+| `utils.ts` | `randomBetween(min, max)`, `clamp(value, min, max)` |
+| `stars.ts` | `createStars(w, h)`, `updateBlink(now)`, `drawStars(now)` |
+| `asteroids.ts` | `calculateAsteroidMass(radius)`, `createCircles(w, h)`, `drawCenterCircles()` |
+| `physics.ts` | `isProjectileCollidingWithAsteroid()`, `isProjectileCollidingWithTarget()`, `isProjectileCollidingWithShip()`, `calculateProjectileEnergy()`, `updateZoom(dt)` |
+| `particles.ts` | `spawnParticles(x, y, energy, colorRGB, now)`, `triggerShake(now)`, `updateParticles(dt, now)`, `drawParticles(now)` |
+| `ship.ts` | `initializeOrClampShip(w, h)`, `spawnProjectile(now)`, `drawEnergyBar(x, y, energy, max)`, `drawShip()`, `updateShip(dt, now)`, `updateProjectiles(dt, now)`, `drawProjectiles(now)` |
+| `enemy.ts` | `initializeEnemyShip(w, h)`, `respawnEnemyShip(now)`, `spawnEnemyProjectile(now)`, `updateEnemyShip(dt, now)`, `drawEnemyShip()`, `updateEnemyProjectiles(dt, now)`, `drawEnemyProjectiles(now)` |
+| `audio.ts` | `getAudioContext()`, `playShootSound(pitchHz)`, `playExplosionSound(energy)`, `startMusic()` |
+| `input.ts` | `setupInput()` |
+| `render.ts` | `resizeCanvas()`, `render(now)` |
+| `index.ts` | Einstiegspunkt: `resizeCanvas()`, `setupInput()`, `requestAnimationFrame(render)` |
 
 ## Build und Ausführung
 ### Build
 ```bash
 npm run build
 ```
+Kompiliert TypeScript nach `dist/` und kopiert `assets/*` nach `dist/`.
 
 ### Im Browser starten
 Nach dem Build `index.html` im Browser öffnen.
 
-## Laufzeit-Architektur (`src/index.ts`)
-- Erstellt ein Fullscreen-Canvas und zeichnet pro Frame:
-  1. Hintergrund
-  2. Sterne (inkl. Blinklogik) – unverändert vom Zoom
-  3. Weiße Kreise / Asteroiden (skaliert durch Zoom)
-  4. Spieler-Projektile (kleine Kugeln, skaliert durch Zoom)
-  5. Gegner-Projektile (rot, lenkend, skaliert durch Zoom)
-  6. Gegnerschiff (rotes Dreieck, skaliert durch Zoom)
-  7. Spielerschiff (blaues Dreieck, skaliert durch Zoom)
-- Kernfunktionen:
-  - `createStars(...)`, `drawStars(...)`, `updateBlink(...)`
-  - `createCircles(...)`, `drawCenterCircles(...)`
-  - `updateShip(...)`, `drawShip(...)`
-  - `updateEnemyShip(...)`, `drawEnemyShip(...)`
-  - `spawnProjectile(...)`, `updateProjectiles(...)`, `drawProjectiles(...)`
-  - `spawnEnemyProjectile(...)`, `updateEnemyProjectiles(...)`, `drawEnemyProjectiles(...)`
-  - `respawnEnemyShip(now)` – setzt Gegner außerhalb links und startet Entry-Phase
-  - `updateZoom(...)` – Zoom-Logik
-  - `getAudioContext()` – lazy AudioContext-Initialisierung
-  - `playShootSound(pitchHz)` – synthetisierter Schusssound
-  - `playExplosionSound(energy)` – White-Noise-Explosionssound
-  - `render(...)`
-- Input:
-  - `ArrowLeft` / `ArrowRight` drehen das Spielerschiff
-  - `ArrowUp` / `ArrowDown` bewegen das Spielerschiff vertikal
-  - `Space` schießt eine kleine Kugel in Blickrichtung
+## Render-Reihenfolge (pro Frame, in `render.ts`)
+1. Hintergrundfüllung (`BACKGROUND_COLOR`)
+2. Bildschirmwackeln (`context.translate` bei aktivem Shake)
+3. Sterne – `drawStars(now)` (vom Zoom unberührt)
+4. Asteroiden – `drawCenterCircles()` (skaliert durch Zoom)
+5. Partikel – `drawParticles(now)` (skaliert durch Zoom)
+6. Spieler-Projektile – `drawProjectiles(now)` (skaliert durch Zoom)
+7. Gegner-Projektile – `drawEnemyProjectiles(now)` (skaliert durch Zoom)
+8. Gegnerschiff – `drawEnemyShip()` (skaliert durch Zoom)
+9. Spielerschiff – `drawShip()` (skaliert durch Zoom)
+10. Score-Overlay – `SCORE 00000` oben mittig (kein Zoom)
+11. Spielzustand-Prompt – „PRESS SPACE TO START" / „GAME OVER – PRESS SPACE" (blinkt, kein Zoom)
+
+## Globales State-Objekt (`state.ts`)
+```typescript
+state = {
+  stars, circles, projectiles, enemyProjectiles, particles,
+  ship: ShipState,
+  enemyShip: EnemyShipState,
+  input: InputState,
+  blinkingStarIndex, blinkUntil, nextBlinkAt,
+  lastFrameTime,
+  zoomLevel,         // aktueller Zoom-Faktor (0.5–1.0)
+  shakeUntil,        // Zeitstempel Ende Bildschirmwackeln
+  playerLastMovedAt, // für intelligentes Gegner-Zielen
+  playerStillCheckX, playerStillCheckY,
+  gameActive,        // false = Splash/Game-Over, true = Spiel läuft
+  score,             // aktueller Score (5-stellig angezeigt)
+  enemyShotCount,    // Spieler-Schüsse seit letztem Kill (für Score)
+}
+```
+
+## Spielstart / Game-Over-Logik
+- Erster `Space`-Druck → `gameActive = true`, Energie reset, `score = 0`, `startMusic()`.
+- Während `gameActive`: `ship.energy <= 0` → `gameActive = false`, Projektile leeren.
+- Prompt „PRESS SPACE TO START" oder „GAME OVER – PRESS SPACE" blinkt im 300 ms Takt.
+- Nächster `Space`-Druck → Neustart.
+
+## Score-System
+- Pro Gegner-Kill: `state.score += Math.max(1, 101 - state.enemyShotCount)`
+- `state.enemyShotCount` inkrementiert in `spawnProjectile()`; wird in `respawnEnemyShip()` auf 0 zurückgesetzt.
+- Score-Reset beim Spielstart.
 
 ## Spieler-Projektile
 - Fliegen geradlinig in Blickrichtung, werden von Asteroiden gravitativ abgelenkt.
-- Maximal 5 Sekunden Lebensdauer; Schaden nimmt mit Alter ab.
-- Zoom-System: Kamera zoomt sanft und gleichmässig heraus, um Spieler-Projektile mit 20 px Margin sichtbar zu halten.
+- Maximal 5 Sekunden Lebensdauer (`PROJECTILE_MAX_LIFETIME_MS`); Schaden nimmt mit Alter ab.
+- Zoom-System in `physics.ts`: Kamera zoomt sanft und gleichmässig heraus, um Spieler-Projektile mit 20 px Margin (`PROJECTILE_MARGIN_FROM_EDGE`) sichtbar zu halten.
 - Maximale Verkleinerung: 50 % (`MIN_ZOOM = 0.5`). Jenseits dieser Grenze dürfen Projektile den Bildschirm verlassen.
 - Feind-Projektile beeinflussen den Zoom **nicht**.
 
 ## Gegner-System
-- `EnemyShipState` enthält: `active`, `entering`, `respawnAt`, `targetY`, `nextMoveAt`, `lastFiredAt` u. a.
-- Konstanten-Gruppe: `ENEMY_*` (z. B. `ENEMY_MARGIN_LEFT`, `ENEMY_FIRE_INTERVAL_MS`, `ENEMY_RESPAWN_DELAY_MS`, `ENEMY_ENTRY_SPEED`).
-- Gegner zielt immer auf den Spieler und feuert homing-Projektile (rote Kugeln).
+- `EnemyShipState`: `active`, `entering`, `respawnAt`, `targetY`, `nextMoveAt`, `lastFiredAt` u. a.
+- Konstanten-Gruppe: `ENEMY_*` (z. B. `ENEMY_MARGIN_LEFT`, `ENEMY_FIRE_INTERVAL_MS`, `ENEMY_RESPAWN_DELAY_MS`, `ENEMY_ENTRY_SPEED`, `ENEMY_STILL_THRESHOLD_MS`).
+- Gegner zielt immer auf den Spieler und feuert Homing-Projektile (rote Kugeln).
+- **Intelligentes Zielen**: Bewegt sich der Spieler länger als `ENEMY_STILL_THRESHOLD_MS` nicht, simuliert `simulateHitsPlayer()` Projektilbahnen für Winkel- und Y-Versatz-Kombinationen (`ENEMY_STILL_SIM_ANGLE_OFFSETS`, `ENEMY_STILL_SIM_Y_OFFSETS`). `findEnemyAimAngle()` wählt den treffsichersten Winkel.
 - **Respawn-Ablauf**:
   1. `active = false`, `respawnAt = now + ENEMY_RESPAWN_DELAY_MS` bei Tod.
   2. `updateEnemyShip` prüft `respawnAt` und ruft `respawnEnemyShip(now)` auf.
-  3. `respawnEnemyShip` positioniert den Gegner links außerhalb des Bildschirms (`x = -length * 2`), setzt `entering = true` und `active = true`.
+  3. `respawnEnemyShip` positioniert den Gegner links ausserhalb des Bildschirms (`x = -length * 2`), setzt `entering = true` und `active = true`.
   4. Entry-Phase: Gegner bewegt sich mit `ENEMY_ENTRY_SPEED` nach rechts bis `ENEMY_MARGIN_LEFT`; kein Schuss in dieser Phase.
   5. Nach Ankunft: `entering = false`, normaler Kampfmodus.
 
 ## Arbeitsregeln für Agenten
 - Kleine, gezielte Änderungen bevorzugen; bestehendes Verhalten nur ändern, wenn angefordert.
-- Bei visuellen Parametern zuerst Konstanten anpassen (z. B. `STAR_*`, `SHIP_*`, `ZOOM_*`, `PROJECTILE_*`, `ENEMY_*`) statt Logik groß umzubauen.
-- Nach Codeänderungen TypeScript-Build ausführen und auf Fehler prüfen.
+- Bei visuellen Parametern zuerst Konstanten in `src/constants.ts` anpassen statt Logik gross umzubauen.
+- Neue Logik in das thematisch passende Modul – keine Änderung der Modulstruktur ohne explizite Anforderung.
+- Nach Codeänderungen `npm run build` ausführen und TypeScript-Fehler beheben.
 - Keine unnötigen neuen Abhängigkeiten einführen.
-- Ausgabe bleibt browserbasiert über `index.html` + `dist/index.js`.
+- Ausgabe bleibt browserbasiert über `index.html` + `dist/`.
 
 ## Sound-System
-- Audio wird ausschließlich per Web Audio API synthetisiert – keine externen Audiodateien.
+- Audio wird ausschliesslich per Web Audio API synthetisiert – keine externen Audiodateien für Soundeffekte.
 - `getAudioContext()` erzeugt den `AudioContext` lazy (erst nach erster Nutzerinteraktion); kein Autoplay-Problem.
 - `playShootSound(pitchHz)`: kurzer Sinuston mit exponentiell fallender Frequenz. Spieler → 880 Hz, Gegner → 420 Hz.
 - `playExplosionSound(energy)`: White-Noise-Burst durch einen Tiefpassfilter; Lautstärke und Grenzfrequenz skalieren mit `energy` (0–100).
-- Beide Funktionen sind in `try/catch` gekapselt – Audio-Fehler werden still ignoriert.
-- Aufrufstellen: `spawnProjectile` (Spieler), `spawnEnemyProjectile` (Gegner), `spawnParticles` (Explosion).
+- `startMusic()`: Spielt `dist/cosmic-coin-chase.mp3` geloopt mit 0.5 Lautstärke; Fehler werden ignoriert.
+- Alle Audio-Funktionen sind in `try/catch` gekapselt – Fehler werden still ignoriert.
+- Aufrufstellen: `spawnProjectile` (Spieler-Schuss), `spawnEnemyProjectile` (Gegner-Schuss), `spawnParticles` (Explosion), `setupInput` (Spielstart → Musik).
 
 ## Bekannte Besonderheiten
-- `dist/` ist Build-Artefakt aus `tsc`.
+- `dist/` ist Build-Artefakt aus `tsc` + `cp assets/* dist/`.
 - Es gibt aktuell keine automatisierten Tests; Absicherung erfolgt primär über Build und manuelle Sichtprüfung im Browser.
+- `tsconfig.json` nutzt `moduleResolution: bundler` – Imports in Quelldateien enden auf `.js` (Laufzeit-Auflösung durch den Browser).
