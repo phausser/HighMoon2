@@ -127,6 +127,26 @@ state = {
 - Alle Audio-Funktionen sind in `try/catch` gekapselt – Fehler werden still ignoriert.
 - Aufrufstellen: `spawnProjectile` (Spieler-Schuss), `spawnEnemyProjectile` (Gegner-Schuss), `spawnParticles` (Explosion), `setupInput` (Spielstart → Musik).
 
+## Code Style
+Massgeblicher Style Guide: **[ts.dev/style](https://ts.dev/style/)** (Google TypeScript Style Guide).
+
+| Thema | Regel |
+|---|---|
+| **Anführungszeichen** | Einfache Quotes `'…'` für alle String-Literale; Template-Literal `` `…` `` wenn der String selbst `'` enthält |
+| **Statements** | Genau ein Statement pro Zeile – kein `;`-getrenntes Mehrfach-Statement |
+| **Variablen-Deklarationen** | Kein Komma-Mehrfach-`const`/`let` (`const a = 1, b = 2` → zwei separate Zeilen) |
+| **Naming** | `camelCase` Variablen/Funktionen/Parameter · `PascalCase` Typen · `UPPER_SNAKE_CASE` Modul-Konstanten |
+| **Typen** | `type` statt `interface` für Objekt-Shapes |
+| **Imports** | `import type` für reine Typ-Imports; kein `import *`; Pfade enden auf `.js` |
+| **Exports** | Nur benannte Exports – kein `export default` |
+| **Return-Typen** | Explizite Return-Typen an allen exportierten Funktionen |
+| **Blöcke** | Immer geschweifte Klammern bei `if`/`for`/`else` – kein einzeiliges Statement ohne Block |
+| **null vs. undefined** | `undefined` bevorzugen; `null` nur wo die Browser-API es erwartet |
+| **Zeilenlänge** | ≤ 80 Zeichen anstreben |
+
+Durchsetzung erfolgt durch Code-Review und diese Dokumentation (kein Linter konfiguriert).  
+Optional: `npx gts init` würde ESLint mit ts.dev/style-Regeln einrichten – nur auf explizite Anforderung.
+
 ## Bekannte Besonderheiten
 - `dist/` ist Build-Artefakt aus `tsc` + `cp assets/* dist/`.
 - Es gibt aktuell keine automatisierten Tests; Absicherung erfolgt primär über Build und manuelle Sichtprüfung im Browser.

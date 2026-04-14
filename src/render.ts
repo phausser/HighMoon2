@@ -64,21 +64,21 @@ export function render(now: number): void {
 
   // Score-Overlay oben mittig
   context.save();
-  context.font = "normal 16px 'Varela Round', monospace";
-  context.textAlign = "center";
-  context.textBaseline = "top";
-  context.fillStyle = "rgba(255, 255, 255, 0.85)";
-  context.fillText(`SCORE ${("00000" + state.score).slice(-5)}`, canvas.width / 2, 16);
+  context.font = `normal 16px 'Varela Round', monospace`;
+  context.textAlign = 'center';
+  context.textBaseline = 'top';
+  context.fillStyle = 'rgba(255, 255, 255, 0.85)';
+  context.fillText(`SCORE ${('00000' + state.score).slice(-5)}`, canvas.width / 2, 16);
   context.restore();
 
   // Prompt anzeigen wenn Spiel nicht aktiv (blinkt synchron mit dem Schiff)
   if (!state.gameActive && Math.floor(performance.now() / 300) % 2 !== 0) {
-    const promptText = state.ship.energy <= 0 ? "GAME OVER \u2013 PRESS SPACE" : "PRESS SPACE TO START";
+    const promptText = state.ship.energy <= 0 ? 'GAME OVER \u2013 PRESS SPACE' : 'PRESS SPACE TO START';
     context.save();
-    context.font = "normal 32px 'Varela Round', monospace";
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    context.fillStyle = "rgba(255, 255, 255, 0.85)";
+    context.font = `normal 32px 'Varela Round', monospace`;
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillStyle = 'rgba(255, 255, 255, 0.85)';
     context.fillText(promptText, canvas.width / 2, canvas.height / 2);
     context.restore();
   }

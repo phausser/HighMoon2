@@ -28,12 +28,16 @@ export function initializeOrClampShip(width: number, height: number): void {
 }
 
 export function spawnProjectile(now: number): void {
-  const dx = Math.cos(state.ship.angle), dy = Math.sin(state.ship.angle);
+  const dx = Math.cos(state.ship.angle);
+  const dy = Math.sin(state.ship.angle);
   const nose = state.ship.length / 2;
   state.projectiles.push({
-    x: state.ship.x + dx * nose, y: state.ship.y + dy * nose,
-    vx: dx * PROJECTILE_SPEED, vy: dy * PROJECTILE_SPEED,
-    createdAt: now, canHitShipAfter: now + PROJECTILE_SHIP_COLLISION_GRACE_MS,
+    x: state.ship.x + dx * nose,
+    y: state.ship.y + dy * nose,
+    vx: dx * PROJECTILE_SPEED,
+    vy: dy * PROJECTILE_SPEED,
+    createdAt: now,
+    canHitShipAfter: now + PROJECTILE_SHIP_COLLISION_GRACE_MS,
   });
   state.enemyShotCount++;
   playShootSound(880);
@@ -42,7 +46,8 @@ export function spawnProjectile(now: number): void {
 export function drawEnergyBar(shipX: number, shipY: number, energy: number, maxEnergy: number): void {
   const bx = shipX - (ENERGY_BAR_WIDTH * state.zoomLevel) / 2;
   const by = shipY - (ENERGY_BAR_OFFSET_Y * state.zoomLevel);
-  const bw = ENERGY_BAR_WIDTH * state.zoomLevel, bh = ENERGY_BAR_HEIGHT * state.zoomLevel;
+  const bw = ENERGY_BAR_WIDTH * state.zoomLevel;
+  const bh = ENERGY_BAR_HEIGHT * state.zoomLevel;
   context.fillStyle = '#333333';
   context.fillRect(bx, by, bw, bh);
   const pct = energy / maxEnergy;
@@ -53,9 +58,11 @@ export function drawEnergyBar(shipX: number, shipY: number, energy: number, maxE
 export function drawShip(): void {
   const zx = state.ship.x * state.zoomLevel + (canvas.width * (1 - state.zoomLevel)) / 2;
   const zy = state.ship.y * state.zoomLevel + (canvas.height * (1 - state.zoomLevel)) / 2;
-  const zl = state.ship.length * state.zoomLevel, zw = state.ship.width * state.zoomLevel;
+  const zl = state.ship.length * state.zoomLevel;
+  const zw = state.ship.width * state.zoomLevel;
   if (!state.gameActive && Math.floor(performance.now() / 300) % 2 === 0) {
-    drawEnergyBar(zx, zy, state.ship.energy, SHIP_MAX_ENERGY); return;
+    drawEnergyBar(zx, zy, state.ship.energy, SHIP_MAX_ENERGY);
+    return;
   }
   context.save();
   context.translate(zx, zy);
@@ -108,34 +115,49 @@ export function updateProjectiles(deltaSeconds: number, now: number): void {
   const surviving: Projectile[] = [];
   for (const p of state.projectiles) {
     if (state.circles.some((c) => isProjectileCollidingWithAsteroid(p.x, p.y, c))) {
-      spawnParticles(p.x, p.y, calculateProjectileEnergy(p, now), SHIP_COLOR_RGB, now); continue;
+      spawnParticles(p.x, p.y, calculateProjectileEnergy(p, now), SHIP_COLOR_RGB, now);
+      continue;
     }
     if (now >= p.canHitShipAfter && isProjectileCollidingWithShip(p.x, p.y)) {
       const e = calculateProjectileEnergy(p, now);
       state.ship.energy = Math.max(0, state.ship.energy - e);
-      spawnParticles(p.x, p.y, e, SHIP_COLOR_RGB, now); triggerShake(now); continue;
+      spawnParticles(p.x, p.y, e, SHIP_COLOR_RGB, now);
+      triggerShake(now);
+      continue;
     }
     if (handleProjectileHitEnemy(p, now)) continue;
 
-    let ax = 0, ay = 0;
+    let ax = 0;
+    let ay = 0;
     for (const circle of state.circles) {
-      const dx = circle.x - p.x, dy = circle.y - p.y;
-      const dSq = dx*dx + dy*dy;
+      const dx = circle.x - p.x;
+      const dy = circle.y - p.y;
+      const dSq = dx * dx + dy * dy;
       const minD = Math.max(PROJECTILE_GRAVITY_MIN_DISTANCE, circle.radius * 0.35);
-      const cdSq = Math.max(dSq, minD*minD), d = Math.sqrt(cdSq);
-      const mag = Math.min((PROJECTILE_GRAVITY_CONSTANT * circle.mass) / cdSq, PROJECTILE_MAX_GRAVITY_ACCELERATION);
-      ax += (dx/d)*mag; ay += (dy/d)*mag;
+      const cdSq = Math.max(dSq, minD * minD);
+      const d = Math.sqrt(cdSq);
+      const mag = Math.min(
+        (PROJECTILE_GRAVITY_CONSTANT * circle.mass) / cdSq,
+        PROJECTILE_MAX_GRAVITY_ACCELERATION,
+      );
+      ax += (dx / d) * mag;
+      ay += (dy / d) * mag;
     }
-    p.vx += ax*deltaSeconds; p.vy += ay*deltaSeconds;
-    p.x += p.vx*deltaSeconds; p.y += p.vy*deltaSeconds;
+    p.vx += ax * deltaSeconds;
+    p.vy += ay * deltaSeconds;
+    p.x += p.vx * deltaSeconds;
+    p.y += p.vy * deltaSeconds;
 
     if (state.circles.some((c) => isProjectileCollidingWithAsteroid(p.x, p.y, c))) {
-      spawnParticles(p.x, p.y, calculateProjectileEnergy(p, now), SHIP_COLOR_RGB, now); continue;
+      spawnParticles(p.x, p.y, calculateProjectileEnergy(p, now), SHIP_COLOR_RGB, now);
+      continue;
     }
     if (now >= p.canHitShipAfter && isProjectileCollidingWithShip(p.x, p.y)) {
       const e = calculateProjectileEnergy(p, now);
       state.ship.energy = Math.max(0, state.ship.energy - e);
-      spawnParticles(p.x, p.y, e, SHIP_COLOR_RGB, now); triggerShake(now); continue;
+      spawnParticles(p.x, p.y, e, SHIP_COLOR_RGB, now);
+      triggerShake(now);
+      continue;
     }
     if (handleProjectileHitEnemy(p, now)) continue;
     surviving.push(p);

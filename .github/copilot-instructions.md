@@ -108,6 +108,23 @@ Dieses Dokument definiert, wie Copilot in `HighMoon2` arbeiten soll.
 - Neue Soundeffekte immer in `try/catch` kapseln – Audio-Fehler stillschweigend ignorieren.
 - Kein Autoplay-Problem: `AudioContext` wird nur nach Nutzerinteraktion erstellt/resumed.
 
+## Code Style
+Massgeblicher Style Guide: **[ts.dev/style](https://ts.dev/style/)** (Google TypeScript Style Guide).
+
+| Thema | Regel |
+|---|---|
+| **Anführungszeichen** | Einfache Quotes `'…'` für alle String-Literale; Template-Literal `` `…` `` wenn der String selbst `'` enthält |
+| **Statements** | Genau ein Statement pro Zeile – kein `;`-getrenntes Mehrfach-Statement |
+| **Variablen-Deklarationen** | Kein Komma-Mehrfach-`const`/`let` in einer Zeile (`const a = 1, b = 2` → zwei Zeilen) |
+| **Naming** | `camelCase` Variablen/Funktionen/Parameter · `PascalCase` Typen · `UPPER_SNAKE_CASE` Modul-Konstanten |
+| **Typen** | `type` statt `interface` für Objekt-Shapes |
+| **Imports** | `import type` für reine Typ-Imports; kein `import *`; Pfade enden auf `.js` |
+| **Exports** | Nur benannte Exports – kein `export default` |
+| **Return-Typen** | Explizite Return-Typen an allen exportierten Funktionen |
+| **Blöcke** | Immer geschweifte Klammern bei `if`/`for`/`else` – kein einzeiliges Statement ohne Block |
+| **null vs. undefined** | `undefined` bevorzugen; `null` nur wo die Browser-API es erwartet |
+| **Zeilenlänge** | ≤ 80 Zeichen anstreben |
+
 ## Dateigrenzen
 - Logik gehört in das thematisch passende Modul in `src/`; keine weitere Aufteilung ohne explizite Anforderung.
 - `src/index.ts` bleibt der minimale Einstiegspunkt.
