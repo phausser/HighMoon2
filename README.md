@@ -9,7 +9,7 @@ Ein minimales TypeScript-Browserspiel gerendert mit Canvas 2D – zwei Schiffe k
 - **Intelligentes Zielen**: Steht der Spieler still, simuliert der Gegner Projektilbahnen und sucht den besten Abschusswinkel
 - Energieleisten für beide Schiffe; Projektilschaden nimmt mit dem Alter ab
 - **Score-System**: Punkte pro Abschuss – mehr Punkte je weniger Schüsse der Spieler brauchte
-- **Spielstart / Game-Over**-Schleife: „PRESS SPACE TO START" → Kampf → „GAME OVER – PRESS SPACE"
+- **Spielstart / Game-Over**-Schleife: „PRESS ENTER TO START" → Kampf → „GAME OVER – PRESS ENTER"
 - Automatisches Zoom-System: Kamera zoomt sanft heraus (max. 50 %), um Spieler-Projektile sichtbar zu halten; jenseits des Limits dürfen Projektile den Bildschirm verlassen
 - Dynamische Hintergrundsterne mit Blinkeffekt (vom Zoom unberührt)
 - Asteroiden mit Kollisionserkennung
@@ -53,7 +53,8 @@ Danach `index.html` im Browser öffnen.
 ## Steuerung
 - `ArrowLeft` / `ArrowRight`: Schiff drehen
 - `ArrowUp` / `ArrowDown`: Schiff vertikal bewegen
-- `Space`: Projektil in Blickrichtung abfeuern (erstes Drücken startet das Spiel)
+- `Space`: Projektil in Blickrichtung abfeuern
+- `Enter`: Spiel starten / nach Game-Over neu starten
 
 ## Score-System
 - Pro Abschuss: `max(1, 101 − Anzahl_eigener_Schüsse_seit_letztem_Kill)`

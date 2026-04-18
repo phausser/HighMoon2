@@ -66,7 +66,7 @@ Nach dem Build `index.html` im Browser öffnen.
 state = {
   stars, circles, projectiles, enemyProjectiles, particles,
   ship: ShipState,
-  enemyShip: EnemyShipState,
+  enemyShips: EnemyShipState[],  // Array – ersetzt das frühere enemyShip
   input: InputState,
   blinkingStarIndex, blinkUntil, nextBlinkAt,
   lastFrameTime,
@@ -77,14 +77,16 @@ state = {
   gameActive,        // false = Splash/Game-Over, true = Spiel läuft
   score,             // aktueller Score (5-stellig angezeigt)
   enemyShotCount,    // Spieler-Schüsse seit letztem Kill (für Score)
+  nextEnemySpawnAt,  // Zeitstempel nächster Gegner-Spawn (ENEMY_SPAWN_INTERVAL_MS)
 }
 ```
 
 ## Spielstart / Game-Over-Logik
-- Erster `Space`-Druck → `gameActive = true`, Energie reset, `score = 0`, `startMusic()`.
+- Erster `Enter`-Druck → `gameActive = true`, Energie reset, `score = 0`, `startMusic()`, `enemyShips` mit einem frischen Gegner initialisiert, `nextEnemySpawnAt` gesetzt.
 - Während `gameActive`: `ship.energy <= 0` → `gameActive = false`, Projektile leeren.
-- Prompt „PRESS SPACE TO START" oder „GAME OVER – PRESS SPACE" blinkt im 300 ms Takt.
-- Nächster `Space`-Druck → Neustart.
+- Prompt „PRESS ENTER TO START" oder „GAME OVER – PRESS ENTER" blinkt im 300 ms Takt.
+- Nächster `Enter`-Druck → Neustart.
+- `Space` feuert während `gameActive` ein Projektil; startet/neustartet das Spiel nicht.
 
 ## Score-System
 - Pro Gegner-Kill: `state.score += Math.max(1, 101 - state.enemyShotCount)`

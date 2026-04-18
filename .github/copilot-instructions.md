@@ -52,12 +52,15 @@ Dieses Dokument definiert, wie Copilot in `HighMoon2` arbeiten soll.
 - `state.playerLastMovedAt`, `state.playerStillCheckX/Y`: Tracking der Spielerbewegung für intelligentes Gegner-Zielen.
 - `state.shakeUntil`: Zeitstempel bis zum Ende des Bildschirmwackelns.
 - `state.zoomLevel`: Aktueller Zoom-Faktor (0.5–1.0).
+- `state.enemyShips`: Array aller aktiven `EnemyShipState`-Objekte (ersetzt das frühere `state.enemyShip`).
+- `state.nextEnemySpawnAt`: Zeitstempel, wann das nächste Gegnerschiff gespawnt wird (`ENEMY_SPAWN_INTERVAL_MS`).
 
 ## Spielstart / Game-Over
-- Erster `Space`-Druck: `state.gameActive = true`, Energie zurücksetzen, `state.score = 0`, Musik starten (`startMusic()`).
-- `Space` während `!state.gameActive && ship.energy <= 0`: Neustart (gleiche Logik).
+- Erster `Enter`-Druck: `state.gameActive = true`, Energie zurücksetzen, `state.score = 0`, Musik starten (`startMusic()`), `state.enemyShips` mit einem frischen Gegner initialisieren.
+- `Enter` während `!state.gameActive`: Neustart (gleiche Logik).
 - Wenn `ship.energy <= 0` während `gameActive`: `gameActive = false`, Projektile leeren.
 - Prompt blinkt synchron mit dem Schiff (300 ms Takt).
+- `Space` feuert ein Projektil (nur während `gameActive`); startet/neustartet das Spiel **nicht** mehr.
 
 ## Zoom-Verhalten
 - Zoom gilt ausschliesslich für Spieler-Projektile; Gegner-Projektile werden vollständig ignoriert.
@@ -86,8 +89,8 @@ Dieses Dokument definiert, wie Copilot in `HighMoon2` arbeiten soll.
 - Vorhandene Steuerung mit Pfeiltasten nicht stillschweigend ändern.
 - Neue Eingaben nur ergänzen, wenn gefordert.
 - Bei Eingabeänderungen auf konsistentes `keydown`/`keyup` Verhalten achten.
-- `Space` feuert ein Projektil pro Tastendruck; kein stillschweigendes Dauerfeuer oder geändertes Repeat-Verhalten einführen.
-- `Space` startet/neustartet das Spiel, wenn `!state.gameActive`.
+- `Space` feuert ein Projektil pro Tastendruck (nur während `gameActive`); kein Dauerfeuer oder geändertes Repeat-Verhalten einführen.
+- `Enter` startet/neustartet das Spiel, wenn `!state.gameActive`.
 
 ## Build und Validierung
 - Nach jeder Codeänderung `npm run build` ausführen (`tsc && cp assets/* dist/`).
