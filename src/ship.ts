@@ -102,19 +102,28 @@ export function updateShip(deltaSeconds: number, now: number): void {
 }
 
 function handleProjectileHitEnemy(projectile: Projectile, now: number): boolean {
-  if (!state.enemyShip.active) return false;
-  const er = Math.max(state.enemyShip.length, state.enemyShip.width) / 2;
-  if (!isProjectileCollidingWithTarget(projectile.x, projectile.y, state.enemyShip.x, state.enemyShip.y, er)) return false;
-  const e = calculateProjectileEnergy(projectile, now);
-  state.enemyShip.energy = Math.max(0, state.enemyShip.energy - e);
-  spawnParticles(projectile.x, projectile.y, e, SHIP_COLOR_RGB, now);
-  triggerShake(now);
-  if (state.enemyShip.energy <= 0) {
-    state.enemyShip.active = false;
-    state.enemyShip.respawnAt = now + ENEMY_RESPAWN_DELAY_MS;
-    state.score += Math.max(1, 101 - state.enemyShotCount);
+  for (const enemy of state.enemyShips) {
+    if (!enemy.active || enemy.entering) {
+      continue;
+    }
+    const er = Math.max(enemy.length, enemy.width) / 2;
+    if (!isProjectileCollidingWithTarget(
+      projectile.x, projectile.y, enemy.x, enemy.y, er,
+    )) {
+      continue;
+    }
+    const e = calculateProjectileEnergy(projectile, now);
+    enemy.energy = Math.max(0, enemy.energy - e);
+    spawnParticles(projectile.x, projectile.y, e, SHIP_COLOR_RGB, now);
+    triggerShake(now);
+    if (enemy.energy <= 0) {
+      enemy.active = false;
+      enemy.respawnAt = now + ENEMY_RESPAWN_DELAY_MS;
+      state.score += Math.max(1, 101 - state.enemyShotCount);
+    }
+    return true;
   }
-  return true;
+  return false;
 }
 
 export function updateProjectiles(deltaSeconds: number, now: number): void {

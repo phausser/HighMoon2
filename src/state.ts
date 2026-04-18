@@ -1,5 +1,7 @@
 import type { Star, Circle, ShipState, InputState, Projectile, Particle, EnemyShipState } from './types.js';
-import { SHIP_MAX_ENERGY, ENEMY_MAX_ENERGY, ENEMY_SPEED_Y } from './constants.js';
+import {
+  SHIP_MAX_ENERGY, ENEMY_MAX_ENERGY, ENEMY_SPEED_Y, ENEMY_SPAWN_INTERVAL_MS,
+} from './constants.js';
 
 export const canvas = document.createElement("canvas");
 const contextMaybe = canvas.getContext("2d");
@@ -28,21 +30,23 @@ export const state = {
     turnSpeed: 2.8,
     energy: SHIP_MAX_ENERGY,
   } as ShipState,
-  enemyShip: {
-    x: 0,
-    y: 0,
-    angle: 0,
-    length: 33,
-    width: 20,
-    speedY: ENEMY_SPEED_Y,
-    energy: ENEMY_MAX_ENERGY,
-    lastFiredAt: -Infinity,
-    active: true,
-    targetY: 0,
-    nextMoveAt: -1,
-    entering: false,
-    respawnAt: -1,
-  } as EnemyShipState,
+  enemyShips: [
+    {
+      x: 0,
+      y: 0,
+      angle: 0,
+      length: 33,
+      width: 20,
+      speedY: ENEMY_SPEED_Y,
+      energy: ENEMY_MAX_ENERGY,
+      lastFiredAt: -Infinity,
+      active: true,
+      targetY: 0,
+      nextMoveAt: -1,
+      entering: false,
+      respawnAt: -1,
+    } as EnemyShipState,
+  ],
   input: {
     left: false,
     right: false,
@@ -61,5 +65,6 @@ export const state = {
   gameActive: false,
   score: 0,
   enemyShotCount: 0,
+  nextEnemySpawnAt: ENEMY_SPAWN_INTERVAL_MS,
 };
 
