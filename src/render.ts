@@ -73,7 +73,9 @@ export function render(now: number): void {
 
   // Prompt anzeigen wenn Spiel nicht aktiv (blinkt synchron mit dem Schiff)
   if (!state.gameActive && Math.floor(performance.now() / 300) % 2 !== 0) {
-    const promptText = state.ship.energy <= 0 ? 'GAME OVER \u2013 PRESS SPACE' : 'PRESS SPACE TO START';
+    const promptText = state.ship.energy <= 0
+      ? 'GAME OVER \u2013 PRESS RETURN'
+      : 'PRESS RETURN TO START';
     context.save();
     context.font = `normal 32px 'Varela Round', monospace`;
     context.textAlign = 'center';
