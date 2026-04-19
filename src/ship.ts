@@ -118,8 +118,13 @@ function handleProjectileHitEnemy(projectile: Projectile, now: number): boolean 
     triggerShake(now);
     if (enemy.energy <= 0) {
       enemy.active = false;
-      enemy.respawnAt = now + ENEMY_RESPAWN_DELAY_MS;
+      enemy.respawnAt = -1;
       state.score += Math.max(1, 101 - state.enemyShotCount);
+      state.enemyShotCount = 0;
+      const anyActive = state.enemyShips.some((s) => s.active);
+      if (!anyActive) {
+        state.nextEnemySpawnAt = now;
+      }
     }
     return true;
   }

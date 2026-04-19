@@ -220,9 +220,6 @@ function updateSingleEnemyShip(
   now: number,
 ): void {
   if (!ship.active) {
-    if (ship.respawnAt >= 0 && now >= ship.respawnAt) {
-      respawnEnemyShip(ship, now);
-    }
     return;
   }
   if (ship.entering) {
@@ -299,6 +296,7 @@ export function updateEnemyShip(deltaSeconds: number, now: number): void {
   for (const ship of state.enemyShips) {
     updateSingleEnemyShip(ship, deltaSeconds, now);
   }
+  state.enemyShips = state.enemyShips.filter((s) => s.active || s.entering);
   const activeCount = state.enemyShips.filter((s) => s.active).length;
   if (
     state.enemyShips.length < ENEMY_MAX_COUNT &&

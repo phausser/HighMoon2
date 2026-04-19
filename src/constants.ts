@@ -55,8 +55,8 @@ export const ENEMY_STILL_AIM_SPREAD_RAD = 0.03;
 export const ENEMY_STILL_SIM_STEP = 1 / 60;
 export const ENEMY_STILL_SIM_ANGLE_OFFSETS = [0, 0.05, -0.05, 0.1, -0.1, 0.15, -0.15, 0.2, -0.2];
 export const ENEMY_STILL_SIM_Y_OFFSETS = [0, -80, 80, -160, 160, -240, 240, -320, 320];
-export const ENEMY_MAX_COUNT = 5;
+export const ENEMY_MAX_COUNT = 8;
 export const ENEMY_SPAWN_INTERVAL_MS = 10000;
-export const ENEMY_MIN_SEPARATION = 80;
+export const ENEMY_MIN_SEPARATION = 90;
 export const ENEMY_SEPARATION_FORCE = 300;
 
